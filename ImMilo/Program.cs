@@ -6,6 +6,7 @@ using ImMilo.ImGuiUtils;
 using MiloLib;
 using MiloLib.Assets;
 using MiloLib.Assets.Rnd;
+using SDL;
 using TinyDialogsNet;
 using Object = MiloLib.Assets.Object;
 
@@ -18,7 +19,7 @@ using Veldrid.StartupUtilities;
 class Program
 {
     
-    private static Sdl2Window _window;
+    private static unsafe SDL_Window* _window;
     public static GraphicsDevice gd;
     private static CommandList _cl;
     public static ImGuiController controller;
@@ -36,9 +37,11 @@ class Program
     private static bool filterActive;
     private static List<object> breadcrumbs = [];
     
-    static void Main(string[] args)
+    static unsafe void Main(string[] args)
     {
+        _window = SDL3.SDL_CreateWindow("ImMilo", 1280, 720, 0);
         // Create window, GraphicsDevice, and all resources necessary for the demo.
+        gd = GraphicsDevice.CreateVulkan(new GraphicsDeviceOptions(true, null, true, ResourceBindingModel.Improved, true, true), new SwapchainDescription(SwapchainSource.CreateWayland(), ));
         VeldridStartup.CreateWindowAndGraphicsDevice(
             new WindowCreateInfo(50, 50, 1280, 720, WindowState.Normal, "ImMilo"),
             new GraphicsDeviceOptions(true, null, true, ResourceBindingModel.Improved, true, true),

@@ -11,10 +11,9 @@
     <ItemGroup>
       <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
       <PackageReference Include="Pfim" Version="0.11.3" />
+      <PackageReference Include="ppy.SDL3-CS" Version="2025.105.0" />
+      <PackageReference Include="ppy.Veldrid" Version="4.9.62-gca0239da6b" />
       <PackageReference Include="TinyDialogsNet" Version="2.0.0" />
-      <PackageReference Include="Veldrid" Version="4.9.0" />
-      <PackageReference Include="Veldrid.SDL2" Version="4.9.0" />
-      <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -30,6 +29,10 @@
         <EmbeddedResource Include="ImGuiUtils\Shaders\SPIR-V\imgui-frag.spv" LogicalName="imgui-frag.spv" />
         <EmbeddedResource Include="ImGuiUtils\Shaders\Metal\imgui-vertex.metallib" LogicalName="imgui-vertex.metallib" />
         <EmbeddedResource Include="ImGuiUtils\Shaders\Metal\imgui-frag.metallib" LogicalName="imgui-frag.metallib" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Veldrid\" />
     </ItemGroup>
 
 </Project>
