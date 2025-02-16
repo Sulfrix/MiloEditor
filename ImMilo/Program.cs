@@ -22,34 +22,10 @@ using Veldrid.StartupUtilities;
 
 public static partial class Program
 {
-    private static Sdl2Window? _window;
-    public static GraphicsDevice? gd;
-    private static CommandList? _cl;
-    public static ImGuiController? controller;
 
     private static readonly Vector3 ClearColor = new(0.45f, 0.55f, 0.6f);
-
-    private static MiloFile? _currentScene;
-    private static MiloFile? currentScene
-    {
-        get
-        {
-            return _currentScene;
-        }
-        set
-        {
-            _currentScene = value;
-            if (value != null)
-            {
-                _window.Title = $"ImMilo - {value.filePath}";
-            }
-            else
-            {
-                _window.Title = "ImMilo";
-            }
-            
-        }
-    }
+    
+    private static MiloFile? currentScene;
 
     private static Exception? errorModalException;
     private static bool errorModalOpen;
@@ -57,7 +33,6 @@ public static partial class Program
 
     private static object? viewingObject;
     private static string filter = "";
-    private static bool filterActive;
     private static readonly List<object> Breadcrumbs = [];
 
     private static Settings.Theme currentTheme;
@@ -76,143 +51,10 @@ public static partial class Program
     private static nint? MiloTexture;
 
     public static bool NoSettingsReload => viewingObject is Settings;
-    private static Dictionary<ImGuiMouseCursor, SDL_Cursor> cursorCache = new();
 
     static void Main(string[] args)
     {
-        Settings.Load();
-        var graphicsDebug = false;
-        var backend = VeldridStartup.GetPlatformDefaultBackend();
-        if (Debugger.IsAttached && backend == GraphicsBackend.OpenGL)
-        {
-            // On my machine, there's a weird bug where running the app with the debugger attached causes
-            // CreateWindowAndGraphicsDevice to crash with little to no information.
-            graphicsDebug = !RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-        }
-
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            backend = GraphicsBackend.Vulkan; // I'm just going to force Vulkan on Windows, getting D3D to work with my shaders has bested me.
-        }
-
-        Console.WriteLine(backend);
-        // Create window, GraphicsDevice, and all resources necessary for the demo.
-        VeldridStartup.CreateWindowAndGraphicsDevice(
-            new WindowCreateInfo(50, 50, 1280, 720, WindowState.Normal, "ImMilo"),
-            new GraphicsDeviceOptions(graphicsDebug, null, true, ResourceBindingModel.Improved, true, true),
-            backend,
-            out _window,
-            out gd);
-        _window.Resized += () =>
-        {
-            gd.MainSwapchain.Resize((uint)_window.Width, (uint)_window.Height);
-            controller.WindowResized(_window.Width, _window.Height);
-        };
-        _cl = gd.ResourceFactory.CreateCommandList();
-        controller = new ImGuiController(gd, gd.MainSwapchain.Framebuffer.OutputDescription, _window.Width,
-            _window.Height);
-        //ImGui.StyleColorsLight();
-        ImGui.GetStyle().ScaleAllSizes(Settings.Loaded.UIScale);
-        ImGui.GetStyle().FrameBorderSize = Settings.Loaded.UIScale;
-        ImGui.GetStyle().ChildBorderSize = Settings.Loaded.UIScale;
-        ImGui.GetIO().FontGlobalScale = Settings.Loaded.UIScale;
-
-        if (ImGuiController.customFontFailed)
-        {
-            OpenErrorModal(
-                new FileNotFoundException("Could not find font file at " +
-                                          Settings.Loaded.fontSettings.CustomFontFilePath),
-                "Failed to load custom font.");
-        }
-
-        _window.DragDrop += evt => { OpenFile(evt.File); };
-        _window.KeyDown += evt =>
-        {
-            if ((evt.Modifiers & ModifierKeys.Control) > 0)
-            {
-                switch (evt.Key)
-                {
-                    case Key.N:
-                        PromptNew();
-                        break;
-                    case Key.O:
-                        PromptOpen();
-                        break;
-                    case Key.W:
-                        CloseAssetAndScene();
-                        break;
-                    case Key.S:
-                        if (currentScene is null)
-                        {
-                            break;
-                        }
-                        if ((evt.Modifiers & ModifierKeys.Shift) > 0)
-                        {
-                            PromptSaveCurrentScene();
-                        }
-                        else
-                        {
-                            SaveCurrentScene();
-                        }
-
-                        break;
-                }
-            }
-        };
-
-        var stopwatch = Stopwatch.StartNew();
-        // Main application loop
-        while (_window.Exists)
-        {
-            var deltaTime = stopwatch.ElapsedTicks / (float)Stopwatch.Frequency;
-            stopwatch.Restart();
-            InputSnapshot snapshot = _window.PumpEvents();
-            if (!_window.Exists)
-            {
-                break;
-            }
-
-            controller.Update(deltaTime,
-                snapshot); // Feed the input events to our ImGui controller, which passes them through to ImGui.
-
-            MainUI();
-
-            _cl.Begin();
-            _cl.SetFramebuffer(gd.MainSwapchain.Framebuffer);
-            _cl.ClearColorTarget(0, new RgbaFloat(ClearColor.X, ClearColor.Y, ClearColor.Z, 1f));
-            controller.Render(gd, _cl);
-            _cl.End();
-            gd.SubmitCommands(_cl);
-            gd.SwapBuffers(gd.MainSwapchain);
-            
-            foreach (var task in callAfterFrame)
-            {
-                task.SetResult();
-            }
-            callAfterFrame.Clear();
-
-            foreach (var action in defferedActions)
-            {
-                action?.Invoke();
-            }
-            defferedActions.Clear();
-        }
-
-        Settings.Save();
-
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform
-                .Windows))
-        {
-            // Linux bodge: Veldrid has some shitty bugs on Linux that cause WaitForIdle to hang. Just exit!
-            Environment.Exit(0);
-        }
-
-        // Clean up Veldrid resources
-        gd.WaitForIdle();
-        controller.Dispose();
-        _cl.Dispose();
-        gd.Dispose();
+        
     }
 
     static void UpdateTheme()
