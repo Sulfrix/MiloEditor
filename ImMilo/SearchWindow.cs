@@ -34,6 +34,7 @@ public class SearchWindow
     public bool EnableEntries = true;
     public bool EnableDirectories = true;
     public bool EnableFields = true;
+    public bool EnableFieldNames = false;
     
     public bool DoFocus = false;
 
@@ -81,12 +82,16 @@ public class SearchWindow
                     ImGui.SameLine();
                 }
             }
+            
+            ImGui.Separator();
 
             refresh |= ImGui.Checkbox("Entries", ref EnableEntries);
             ImGui.SameLine();
             refresh |= ImGui.Checkbox("Directories", ref EnableDirectories);
             ImGui.SameLine();
             refresh |= ImGui.Checkbox("Fields", ref EnableFields);
+            ImGui.SameLine();
+            refresh |= ImGui.Checkbox("Field Names", ref EnableFieldNames);
             if (refresh)
             {
                 UpdateQuery();
@@ -355,6 +360,16 @@ public class SearchWindow
         }
     }
 
+    public class FieldNameBreadcrumb : FieldBreadcrumb
+    {
+        public FieldNameBreadcrumb(object parent, FieldInfo field) : base(parent, field) {}
+
+        public override String ToString()
+        {
+            return "[" + Target.Name + "]" + " (" + Target.GetValue(Parent) + ")"; 
+        }
+    }
+
     public class ListItemBreadcrumb : SearchBreadcrumb<int>
     {
         public ListItemBreadcrumb(int index)
@@ -497,7 +512,7 @@ public class SearchWindow
 
     public void SearchObject(object obj, ref List<SearchResult> results, List<SearchBreadcrumb> breadcrumbs)
     {
-        if (!EnableFields)
+        if (!EnableFields && !EnableFieldNames)
             return;
         SearchCancelTokenSource?.Token.ThrowIfCancellationRequested();
         if (obj == null)
@@ -523,39 +538,52 @@ public class SearchWindow
                 continue;
             }
             var fieldValue = field.GetValue(obj);
+            var isEmpty = true;
             switch (fieldValue)
             {
                 case Symbol symbolValue:
-                    if (MatchesQuery(symbolValue.value))
+                    if (EnableFields && MatchesQuery(symbolValue.value))
                     {
                         results.Add(new SearchResult(CopyAndAdd(breadcrumbs, new FieldBreadcrumb(obj, field))));
-                    }
-                    break;
-                case String stringValue:
-                    if (MatchesQuery(stringValue))
-                    {
-                        results.Add(new SearchResult(CopyAndAdd(breadcrumbs, new FieldBreadcrumb(obj, field))));
-                    }
-                    break;
-                case IList list:
-                    var fieldCrumbs = CopyAndAdd(breadcrumbs, new FieldBreadcrumb(obj, field));
-                    for (int i = 0; i < list.Count; i++)
-                    {
-                        var listObj = list[i];
-                        if (ObjectMatches(listObj))
-                        {
-                            results.Add(new SearchResult(CopyAndAdd(fieldCrumbs, new ListItemBreadcrumb(i))));
-                        }
-                        else
-                        {
-                            SearchObject(listObj, ref results, CopyAndAdd(fieldCrumbs, new ListItemBreadcrumb(i)));
-                        }
                     }
 
+                    isEmpty = symbolValue.value.Length == 0;
+                    break;
+                case String stringValue:
+                    if (EnableFields && MatchesQuery(stringValue))
+                    {
+                        results.Add(new SearchResult(CopyAndAdd(breadcrumbs, new FieldBreadcrumb(obj, field))));
+                    }
+                    isEmpty = stringValue.Length == 0;
+                    break;
+                case IList list:
+                    
+                    if (EnableFields)
+                    {
+                        var fieldCrumbs = CopyAndAdd(breadcrumbs, new FieldBreadcrumb(obj, field));
+                        for (int i = 0; i < list.Count; i++)
+                        {
+                            var listObj = list[i];
+                            if (ObjectMatches(listObj))
+                            {
+                                results.Add(new SearchResult(CopyAndAdd(fieldCrumbs, new ListItemBreadcrumb(i))));
+                            }
+                            else
+                            {
+                                SearchObject(listObj, ref results, CopyAndAdd(fieldCrumbs, new ListItemBreadcrumb(i)));
+                            }
+                        }
+                    }
+                    isEmpty = list.Count == 0;
                     break;
                 case object nestedObject when fieldValue != null:
                     SearchObject(nestedObject, ref results, CopyAndAdd(breadcrumbs, new FieldBreadcrumb(obj, field)));
                     break;
+            }
+
+            if (EnableFieldNames && !isEmpty && ObjectMatches(field.Name))
+            {
+                results.Add(new SearchResult(CopyAndAdd(breadcrumbs, new FieldNameBreadcrumb(obj, field))));
             }
         }
     }

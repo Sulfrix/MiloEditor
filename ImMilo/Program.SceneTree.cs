@@ -362,6 +362,7 @@ public partial class Program
                 SearchWindow.mainWindow.EnableDirectories = false;
                 SearchWindow.mainWindow.EnableEntries = false;
                 SearchWindow.mainWindow.EnableFields = true;
+                SearchWindow.mainWindow.EnableFieldNames = false;
                 SearchWindow.mainWindow.Type = SearchWindow.SearchType.Exact;
                 ImGui.CloseCurrentPopup();
             }
@@ -714,7 +715,7 @@ public partial class Program
                     childrenDrawn++;
                     if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && entry.obj != null)
                     {
-                        NavigateObject(entry.obj);
+                        NavigateObject(entry.obj, false, entry);
                     }
 
                     unsafe

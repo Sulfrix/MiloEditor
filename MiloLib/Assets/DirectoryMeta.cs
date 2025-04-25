@@ -1488,6 +1488,9 @@ namespace MiloLib.Assets
                 case "Environ":
                     ((RndEnviron)entry.obj).Write(writer, true, this, entry);
                     break;
+                case "EventTrigger":
+                    ((EventTrigger)entry.obj).Write(writer, true, this, entry);
+                    break;
                 case "FileMerger":
                     ((FileMerger)entry.obj).Write(writer, true, this, entry);
                     break;

@@ -56,6 +56,7 @@ public static partial class Program
     private static string errorModalMessage = "";
 
     private static object? viewingObject;
+    private static DirectoryMeta.Entry? viewingEntry;
     private static string filter = "";
     private static bool filterActive;
     private static readonly List<object> Breadcrumbs = [];
@@ -77,6 +78,8 @@ public static partial class Program
 
     public static bool NoSettingsReload => viewingObject is Settings;
     private static Dictionary<ImGuiMouseCursor, SDL_Cursor> cursorCache = new();
+
+    private static SearchWindow geomOwnerFinder = new("Geometry Owner Finder");
 
     static void Main(string[] args)
     {
@@ -566,6 +569,10 @@ public static partial class Program
         }
         catch (Exception e)
         {
+            if (Debugger.IsAttached)
+            {
+                throw;
+            }
             OpenErrorModal(e, "Error occurred while saving file:");
         }
     }
@@ -597,7 +604,7 @@ public static partial class Program
     /// </summary>
     /// <param name="toView">The object to view.</param>
     /// <param name="breadcrumb">Whether or not to lay "breadcrumbs", which allows for easy navigation to the parent object</param>
-    public static void NavigateObject(object toView, bool breadcrumb = false)
+    public static void NavigateObject(object toView, bool breadcrumb = false, DirectoryMeta.Entry entry = null)
     {
         if (toView == null)
         {
@@ -605,6 +612,7 @@ public static partial class Program
         }
         Console.WriteLine("Navigating to " + toView.GetType().Name);
         viewingObject = toView;
+        viewingEntry = entry;
         if (breadcrumb)
         {
             if (!Breadcrumbs.Contains(toView))
@@ -783,7 +791,25 @@ public static partial class Program
                         {
                             if (ImGui.BeginTabItem(FontAwesome5.Cube + "  Mesh"))
                             {
-                                MeshEditor.Draw(mesh);
+                                if (viewingEntry != null && mesh.vertices.vertices.Count == 0 && mesh.geomOwner != viewingEntry.name)
+                                {
+                                    ImGui.Text("This mesh is a reference to another mesh: ");
+                                    if (MeshEditor.curMesh != mesh)
+                                    {
+                                        geomOwnerFinder.Query = mesh.geomOwner.value;
+                                        geomOwnerFinder.EnableDirectories = false;
+                                        geomOwnerFinder.EnableFields = false;
+                                        geomOwnerFinder.Type = SearchWindow.SearchType.Exact;
+                                        geomOwnerFinder.TargetScene = currentScene;
+                                        geomOwnerFinder.UpdateQuery();
+                                    }
+                                    geomOwnerFinder.Draw(true);
+                                    MeshEditor.curMesh = mesh;
+                                }
+                                else
+                                {
+                                    MeshEditor.Draw(mesh);
+                                }
                                 ImGui.EndTabItem();
                             }
                         }

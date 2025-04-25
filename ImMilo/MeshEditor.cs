@@ -13,7 +13,7 @@ namespace ImMilo;
 
 public static class MeshEditor
 {
-    private static RndMesh curMesh;
+    public static RndMesh curMesh;
     private static Vector2 viewportSize;
     private static bool initialized;
     private static Framebuffer? framebuffer;
