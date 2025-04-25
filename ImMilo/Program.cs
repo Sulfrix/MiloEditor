@@ -39,15 +39,17 @@ public static partial class Program
         private set
         {
             _currentScene = value;
-            if (value != null)
+            if (_window != null)
             {
-                _window.Title = $"ImMilo - {value.filePath}";
+                if (value != null)
+                {
+                    _window.Title = $"ImMilo - {value.filePath}";
+                }
+                else
+                {
+                    _window.Title = "ImMilo";
+                }
             }
-            else
-            {
-                _window.Title = "ImMilo";
-            }
-
         }
     }
 
@@ -83,6 +85,10 @@ public static partial class Program
 
     static void Main(string[] args)
     {
+        if (args.Length > 0)
+        {
+            OpenFile(args[0]);
+        }
         Settings.Load();
         var graphicsDebug = false;
         var backend = VeldridStartup.GetPlatformDefaultBackend();
