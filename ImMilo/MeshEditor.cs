@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using ImGuiNET;
@@ -51,6 +52,8 @@ public static class MeshEditor
 
     private static Texture? diffuseTexture;
     private static TextureView? diffuseTextureView;
+    private static Texture? missingTexture;
+    private static TextureView? missingTextureView;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct PackedVertex
@@ -133,7 +136,7 @@ public static class MeshEditor
         GraphicsPipelineDescription pd = new GraphicsPipelineDescription(
             BlendStateDescription.SingleAlphaBlend,
             new DepthStencilStateDescription(true, true, ComparisonKind.LessEqual),
-            new RasterizerStateDescription(FaceCullMode.Back, PolygonFillMode.Solid, FrontFace.CounterClockwise, true, false),
+            new RasterizerStateDescription(FaceCullMode.None, PolygonFillMode.Solid, FrontFace.CounterClockwise, true, false),
             PrimitiveTopology.TriangleList,
             new ShaderSetDescription(vertexLayouts, [vertexShader, fragmentShader]),
             [layout, textureLayout],
@@ -248,6 +251,19 @@ public static class MeshEditor
         else
         {
             Console.WriteLine("Could not find material");
+        }
+
+        if (textureResourceSet == null)
+        {
+            if (missingTextureView == null)
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var str = assembly.GetManifestResourceStream("checkerboard.png");
+                missingTexture = Util.QuickCreateTexture(str);
+                missingTextureView = Program.gd.ResourceFactory.CreateTextureView(missingTexture);
+            }
+            
+            textureResourceSet = gd.ResourceFactory.CreateResourceSet(new ResourceSetDescription(textureLayout, missingTextureView));
         }
     }
 

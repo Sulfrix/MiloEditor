@@ -55,6 +55,7 @@
         <EmbeddedResource Include="ImGuiUtils\Shaders\SPIR-V\imgui-vertex.spv" LogicalName="imgui-vertex.spv" />
         <EmbeddedResource Include="ImGuiUtils\Shaders\SPIR-V\imgui-frag.spv" LogicalName="imgui-frag.spv" />
         <EmbeddedResource Include="Assets\milo.png" LogicalName="milo.png" />
+        <EmbeddedResource Include="Assets\checkerboard.png" LogicalName="checkerboard.png" />
     </ItemGroup>
 
 </Project>
