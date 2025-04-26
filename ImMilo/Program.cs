@@ -96,7 +96,7 @@ public static partial class Program
         {
             // On my machine, there's a weird bug where running the app with the debugger attached causes
             // CreateWindowAndGraphicsDevice to crash with little to no information.
-            graphicsDebug = !RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+            //graphicsDebug = !RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
         }
 
 

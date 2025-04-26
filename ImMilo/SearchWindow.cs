@@ -262,6 +262,59 @@ public class SearchWindow
         }
 
     }
+    
+    // Synchronously finds an entry in the scene 
+    public static SearchResult? OnDemandSearchObj(string objName)
+    {
+        var window = new SearchWindow("onDemand");
+        window.TargetScene = mainWindow.TargetScene;
+        window.Type = SearchType.Exact;
+        window.EnableFields = false;
+        window.EnableDirectories = false;
+        window.EnableEntries = true;
+        window.EnableFieldNames = false;
+        window.Query = objName;
+
+        var results = new List<SearchResult>();
+        window.SearchDirectory(window.TargetScene.dirMeta, ref results, new List<SearchBreadcrumb>());
+
+        if (results.Count > 0)
+        {
+            return results[0];
+        }
+
+        return null;
+    }
+
+    public static DirectoryMeta.Entry? OnDemandSearchEntry(string entryName)
+    {
+        var result = OnDemandSearchObj(entryName);
+
+        if (result != null)
+        {
+            if (result.Result is EntryBreadcrumb entry)
+            {
+                return entry.Target;
+            }
+        }
+        return null;
+    }
+
+    public static T? OnDemandSearchObj<T>(string objName)
+    {
+        Console.WriteLine("Searching for " + typeof(T).Name + " with name " + objName);
+        var entry = OnDemandSearchEntry(objName);
+
+        if (entry != null)
+        {
+            if (entry.obj is T toObj)
+            {
+                return toObj;
+            }
+        }
+
+        return default;
+    }
 
     public abstract class SearchBreadcrumb
     {

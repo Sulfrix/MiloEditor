@@ -23,6 +23,84 @@ public static class BitmapEditor
     private static bool supportedEncoding = false;
     private static Exception encodingError = null;
 
+    public static (TextureView, Texture)? LoadRndTex(RndTex texture)
+    {
+        if (texture.bitmap == null)
+        {
+            throw new ArgumentNullException(nameof(texture), "Provided texture has a null bitmap.");
+        }
+
+        try
+        {
+            if (texture.bitmap.encoding == RndBitmap.TextureEncoding.DXT1_BC1 ||
+                texture.bitmap.encoding == RndBitmap.TextureEncoding.DXT5_BC3 ||
+                texture.bitmap.encoding == RndBitmap.TextureEncoding.ATI2_BC5)
+            {
+                byte[] imageData = texture.bitmap.ConvertToImage().ToArray();
+                if (imageData == null || imageData.Length == 0)
+                {
+                    throw new NullReferenceException("ConvertToImage returned null or empty data.");
+                }
+
+                using (var ms = new MemoryStream(imageData))
+                using (var image = Pfimage.FromStream(ms))
+                {
+                    if (image == null)
+                    {
+                        throw new NullReferenceException("Pfimage.FromStream returned null.");
+                    }
+
+                    image.Decompress();
+
+                    if (image.Format != Pfim.ImageFormat.Rgba32)
+                    {
+                        Console.WriteLine(
+                            $"Warning: Decompressed to {image.Format}, expected Rgba32. Veldrid update might fail or look incorrect.");
+                    }
+
+                    Console.WriteLine(image.Width + " x " + image.Height);
+
+                    if (image.Width <= 0 || image.Height <= 0)
+                    {
+                        Console.WriteLine($"Invalid image dimensions after decoding: {image.Width}x{image.Height}");
+                    }
+
+                    uint bytesPerPixel = (uint)image.BitsPerPixel / 8;
+                    if (bytesPerPixel == 0)
+                        Console.WriteLine($"Invalid BitsPerPixel ({image.BitsPerPixel}) from decoded image.");
+
+                    uint expectedDataSize = (uint)(image.Width * image.Height * bytesPerPixel);
+                    if (image.DataLen != expectedDataSize)
+                    {
+                        throw new Exception(
+                            $"Decompressed image data length ({image.DataLen}) does not match expected size ({expectedDataSize}) for {image.Width}x{image.Height} @ {image.BitsPerPixel}bpp. Format was {image.Format}.");
+                    }
+
+                    var newTex = Program.gd.ResourceFactory.CreateTexture(TextureDescription.Texture2D(
+                        (uint)image.Width, (uint)image.Height, 1, 1,
+                        PixelFormat.B8_G8_R8_A8_UNorm,
+                        TextureUsage.Sampled));
+
+                    Program.gd.UpdateTexture(
+                        newTex,
+                        image.Data,
+                        0, 0, 0,
+                        (uint)image.Width, (uint)image.Height, 1,
+                        0, 0);
+
+                    return (Program.gd.ResourceFactory.CreateTextureView(newTex), newTex);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            
+            return null;
+        }
+
+        return null;
+    }
+
     private static void UpdateTexture(RndTex texture)
     {
         if (previewTexture != null)
@@ -51,59 +129,9 @@ public static class BitmapEditor
                 texture.bitmap.encoding == RndBitmap.TextureEncoding.DXT5_BC3 ||
                 texture.bitmap.encoding == RndBitmap.TextureEncoding.ATI2_BC5)
             {
-                byte[] imageData = texture.bitmap.ConvertToImage().ToArray();
-                if (imageData == null || imageData.Length == 0)
-                {
-                    throw new NullReferenceException("ConvertToImage returned null or empty data.");
-                }
-
-                using (var ms = new MemoryStream(imageData))
-                using (var image = Pfimage.FromStream(ms))
-                {
-                    if (image == null)
-                    {
-                        throw new NullReferenceException("Pfimage.FromStream returned null.");
-                    }
-
-                    image.Decompress();
-
-                    if (image.Format != Pfim.ImageFormat.Rgba32)
-                    {
-                        Console.WriteLine($"Warning: Decompressed to {image.Format}, expected Rgba32. Veldrid update might fail or look incorrect.");
-                    }
-
-                    Console.WriteLine(image.Width + " x " + image.Height);
-
-                    if (image.Width <= 0 || image.Height <= 0)
-                    {
-                        Console.WriteLine($"Invalid image dimensions after decoding: {image.Width}x{image.Height}");
-                    }
-                    uint bytesPerPixel = (uint)image.BitsPerPixel / 8;
-                    if (bytesPerPixel == 0)
-                        Console.WriteLine($"Invalid BitsPerPixel ({image.BitsPerPixel}) from decoded image.");
-
-                    uint expectedDataSize = (uint)(image.Width * image.Height * bytesPerPixel);
-                    if (image.DataLen != expectedDataSize)
-                    {
-                        throw new Exception($"Decompressed image data length ({image.DataLen}) does not match expected size ({expectedDataSize}) for {image.Width}x{image.Height} @ {image.BitsPerPixel}bpp. Format was {image.Format}.");
-                    }
-
-                    previewTexture = Program.gd.ResourceFactory.CreateTexture(TextureDescription.Texture2D(
-                        (uint)image.Width, (uint)image.Height, 1, 1,
-                        PixelFormat.B8_G8_R8_A8_UNorm,
-                        TextureUsage.Sampled));
-
-                    Program.gd.UpdateTexture(
-                        previewTexture,
-                        image.Data,
-                        0, 0, 0,
-                        (uint)image.Width, (uint)image.Height, 1,
-                        0, 0);
-
-                    previewTextureView = Program.gd.ResourceFactory.CreateTextureView(previewTexture);
-                    texID = Program.controller.GetOrCreateImGuiBinding(Program.gd.ResourceFactory, previewTextureView);
-                    supportedEncoding = true;
-                }
+                (previewTextureView, previewTexture) = LoadRndTex(texture).Value;
+                texID = Program.controller.GetOrCreateImGuiBinding(Program.gd.ResourceFactory, previewTextureView);
+                supportedEncoding = true;
             }
             else
             {

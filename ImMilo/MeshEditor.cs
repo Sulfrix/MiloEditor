@@ -27,13 +27,16 @@ public static class MeshEditor
     private static DeviceBuffer? vertexBuffer;
     private static DeviceBuffer? indexBuffer;
     private static DeviceBuffer? matrixBuffer;
+    private static DeviceBuffer? uniformBuffer;
     private static Pipeline? pipeline;
 
     private static Shader? fragmentShader;
     private static Shader? vertexShader;
 
     private static ResourceLayout? layout;
+    private static ResourceLayout? textureLayout;
     private static ResourceSet? mainResourceSet;
+    private static ResourceSet? textureResourceSet;
 
     private static List<PackedVertex> vertices = new();
     private static List<PackedFace> faces = new();
@@ -46,16 +49,26 @@ public static class MeshEditor
 
     private static Exception previewError;
 
+    private static Texture? diffuseTexture;
+    private static TextureView? diffuseTextureView;
+
     [StructLayout(LayoutKind.Sequential)]
     public struct PackedVertex
     {
         public float X, Y, Z;
+        public float nX, nY, nZ;
+        public float u, v;
 
         public PackedVertex(Vertex vertex)
         {
             X = vertex.x;
             Y = vertex.y;
             Z = vertex.z;
+            nX = vertex.nx;
+            nY = vertex.ny;
+            nZ = vertex.nz;
+            u = vertex.u;
+            v = vertex.v;
         }
     }
 
@@ -82,6 +95,8 @@ public static class MeshEditor
             factory.CreateBuffer(new BufferDescription(128, BufferUsage.UniformBuffer | BufferUsage.Dynamic));
         matrixBuffer.Name = "Mesh Preview Matrix Buffer (Projection and Rotation)";
 
+        uniformBuffer = factory.CreateBuffer(new BufferDescription(16, BufferUsage.UniformBuffer | BufferUsage.Dynamic));
+
         byte[] vertexShaderBytes =
             controller.LoadEmbeddedShaderCode(factory, "meshpreview-vertex", ShaderStages.Vertex);
         byte[] fragmentShaderBytes =
@@ -93,32 +108,56 @@ public static class MeshEditor
 
         VertexLayoutDescription[] vertexLayouts = new VertexLayoutDescription[]
         {
-            new VertexLayoutDescription(new VertexElementDescription("in_position", VertexElementSemantic.Position,
-                VertexElementFormat.Float3))
+            new VertexLayoutDescription(
+                [
+                    new VertexElementDescription("in_position", VertexElementSemantic.Position, VertexElementFormat.Float3), 
+                    new VertexElementDescription("in_normal", VertexElementSemantic.Normal, VertexElementFormat.Float3),
+                    new VertexElementDescription("in_uv", VertexElementSemantic.TextureCoordinate, VertexElementFormat.Float2),
+                ]
+                )
         };
 
         layout = factory.CreateResourceLayout(new ResourceLayoutDescription(
-            new ResourceLayoutElementDescription("ProjectionMatrixBuffer", ResourceKind.UniformBuffer, ShaderStages.Vertex)));
+            [
+                new ResourceLayoutElementDescription("ProjectionMatrixBuffer", ResourceKind.UniformBuffer, ShaderStages.Vertex),
+                new ResourceLayoutElementDescription("UniformBuffer", ResourceKind.UniformBuffer, ShaderStages.Fragment),
+                new ResourceLayoutElementDescription("TextureSampler", ResourceKind.Sampler, ShaderStages.Fragment)
+            ]
+            )
+        );
+        textureLayout = factory.CreateResourceLayout(new ResourceLayoutDescription(
+            new ResourceLayoutElementDescription("DiffuseTexture", ResourceKind.TextureReadOnly, ShaderStages.Fragment)
+        ));
+        
 
         GraphicsPipelineDescription pd = new GraphicsPipelineDescription(
             BlendStateDescription.SingleAlphaBlend,
-            new DepthStencilStateDescription(true, true, ComparisonKind.Greater),
-            new RasterizerStateDescription(FaceCullMode.None, PolygonFillMode.Wireframe, FrontFace.Clockwise, true, false),
+            new DepthStencilStateDescription(true, true, ComparisonKind.LessEqual),
+            new RasterizerStateDescription(FaceCullMode.Back, PolygonFillMode.Solid, FrontFace.CounterClockwise, true, false),
             PrimitiveTopology.TriangleList,
             new ShaderSetDescription(vertexLayouts, [vertexShader, fragmentShader]),
-            [layout],
+            [layout, textureLayout],
             framebuffer.OutputDescription,
             ResourceBindingModel.Default);
         pipeline = factory.CreateGraphicsPipeline(ref pd);
 
-        mainResourceSet = factory.CreateResourceSet(new ResourceSetDescription(layout, matrixBuffer));
-
+        mainResourceSet = factory.CreateResourceSet(new ResourceSetDescription(layout, matrixBuffer, uniformBuffer, gd.Aniso4xSampler));
+        
     }
 
     static void UpdateMesh(RndMesh newMesh)
     {
         var gd = Program.gd;
         curMesh = newMesh;
+        if (diffuseTexture != null)
+        {
+            diffuseTexture?.Dispose();
+            diffuseTextureView?.Dispose();
+            textureResourceSet?.Dispose();
+            diffuseTexture = null;
+            diffuseTextureView = null;
+            textureResourceSet = null;
+        }
         vertices.Clear();
         faces.Clear();
         modelRotation = Matrix4x4.Identity;
@@ -171,6 +210,45 @@ public static class MeshEditor
 
         commandList.UpdateBuffer(vertexBuffer, 0, vertices.ToArray());
         commandList.UpdateBuffer(indexBuffer, 0, faces.ToArray());
+
+        var mat = SearchWindow.OnDemandSearchObj<RndMat>(newMesh.mat);
+        if (mat != null)
+        {
+            var tex = SearchWindow.OnDemandSearchObj<RndTex>(mat.diffuseTex);
+            if (tex != null)
+            {
+                try
+                {
+                    var loadResult = BitmapEditor.LoadRndTex(tex);
+                    if (loadResult != null)
+                    {
+                        (diffuseTextureView, diffuseTexture) = loadResult.Value;
+                        textureResourceSet = gd.ResourceFactory.CreateResourceSet(new ResourceSetDescription(textureLayout, diffuseTextureView));
+                    }
+                    else
+                    {
+                        Console.WriteLine("Failed to load texture");
+                        throw new Exception("Failed to load texture");
+                    }
+                }
+                catch (Exception e)
+                {
+                    diffuseTexture?.Dispose();
+                    diffuseTextureView?.Dispose();
+                    textureResourceSet?.Dispose();
+                    Console.WriteLine(e);
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("Could not find texture");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Could not find material");
+        }
     }
 
     static void CreateFramebuffer(Vector2 newSize)
@@ -207,6 +285,10 @@ public static class MeshEditor
 
     public static void Draw(RndMesh mesh)
     {
+        if (ImGui.Button("Reload"))
+        {
+            curMesh = null;
+        }
 
         if (ImGui.GetContentRegionAvail() != viewportSize)
         {
@@ -240,6 +322,9 @@ public static class MeshEditor
         {
             throw new Exception("Command list is null");
         }
+
+        
+        
         commandList.Begin();
 
         if (mesh != curMesh)
@@ -254,17 +339,23 @@ public static class MeshEditor
         modelMatrix = Matrix4x4.CreateTranslation(-centerPos + modelOffset);
         modelMatrix *= modelRotation;
 
-
+        
+        
         Program.gd.UpdateBuffer(matrixBuffer, 0, projectionMatrix);
         Program.gd.UpdateBuffer(matrixBuffer, 64, modelMatrix);
+        Program.gd.UpdateBuffer(uniformBuffer, 0, (textureResourceSet != null));
         commandList.SetFramebuffer(framebuffer);
         commandList.SetFullViewports();
-        commandList.ClearDepthStencil(0);
+        commandList.ClearDepthStencil(1);
         commandList.ClearColorTarget(0, new RgbaFloat(0, 0, 0, 0.0f));
         commandList.SetVertexBuffer(0, vertexBuffer);
         commandList.SetIndexBuffer(indexBuffer, IndexFormat.UInt16);
         commandList.SetPipeline(pipeline);
         commandList.SetGraphicsResourceSet(0, mainResourceSet);
+        if (textureResourceSet != null)
+        {
+            commandList.SetGraphicsResourceSet(1, textureResourceSet);
+        }
         commandList.DrawIndexed((uint)faces.Count * 3);
         commandList.End();
         Program.gd.SubmitCommands(commandList);
