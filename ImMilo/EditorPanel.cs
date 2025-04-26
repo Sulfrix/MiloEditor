@@ -7,6 +7,7 @@ using ImMilo.ImGuiUtils;
 using MiloLib.Assets;
 using MiloLib.Assets.Rnd;
 using MiloLib.Classes;
+using TinyDialogsNet;
 using Veldrid;
 using Object = MiloLib.Assets.Object;
 using Vector2 = System.Numerics.Vector2;
@@ -510,6 +511,27 @@ public class EditorPanel
                     }
                 }
                 ImGui.EndChild();
+                break;
+            case List<byte> byteListValue:
+                ImGui.Text("Raw data, " + byteListValue.Count + " bytes");
+                if (ImGui.Button(FontAwesome5.FileExport + "  Export"))
+                {
+                    var (canceled, path) =
+                        TinyDialogs.SaveFileDialog("Export Byte Array", Program.currentScene.filePath, null);
+                    if (!canceled)
+                    {
+                        File.WriteAllBytes(path, byteListValue.ToArray());
+                    }
+                }
+                ImGui.SameLine();
+                if (ImGui.Button(FontAwesome5.FileImport + "  Import"))
+                {
+                    var (canceled, path) = TinyDialogs.OpenFileDialog("Import Byte Array", Program.currentScene.filePath, false, null);
+                    if (!canceled)
+                    {
+                        field.SetValue(parent, new List<byte>(File.ReadAllBytes(path.First())));
+                    }
+                }
                 break;
             case IEnumerable collection:
                 {
