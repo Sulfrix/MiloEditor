@@ -167,14 +167,13 @@ namespace MiloLib.Utils
 
         public float ReadHalfFloat()
         {
-            // Read the raw 16 bits
             ushort raw = ReadUInt16();
 
-            // If endianness doesn't match the machine, swap the bytes
+            // Swap if stream endianness != host endianness
             if (_bigEndian == BitConverter.IsLittleEndian)
-                raw = (ushort)(((raw & 0xFF) << 8) | (raw >> 8));
+                raw = (ushort)((raw << 8) | (raw >> 8));
 
-            return HalfToFloat(raw);
+            return (float)BitConverter.UInt16BitsToHalf(raw);
         }
 
         /// <summary>
@@ -419,6 +418,23 @@ namespace MiloLib.Utils
             }
             Skip(size - _currentString.Length * 2);
             return _currentString.ToString();
+        }
+
+        public string ReadBytesWithEncoding(int size, Encoding encoding)
+        {
+            byte[] bytes = new byte[size];
+            for (int i = 0; i < size; i++)
+            {
+                bytes[i] = ReadByte();
+            }
+
+            int nullIndex = Array.IndexOf<byte>(bytes, 0);
+            if (nullIndex >= 0)
+            {
+                size = nullIndex;
+            }
+
+            return encoding.GetString(bytes, 0, size);
         }
 
 

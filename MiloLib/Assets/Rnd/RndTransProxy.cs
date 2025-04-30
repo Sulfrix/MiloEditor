@@ -9,6 +9,7 @@ namespace MiloLib.Assets.Rnd
         private ushort altRevision;
         private ushort revision;
 
+        [MinVersion(1)]
         public RndTrans trans = new();
         [Name("Proxy"), Description("Proxy object this will look into.")]
         public Symbol proxy = new(0, "");

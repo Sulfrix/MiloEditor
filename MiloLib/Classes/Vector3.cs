@@ -5,7 +5,7 @@ namespace MiloLib.Classes
     /// <summary>
     /// Represents a 3D vector.
     /// </summary>
-    public class Vector3
+    public struct Vector3
     {
         public float x;
         public float y;
@@ -49,9 +49,12 @@ namespace MiloLib.Classes
             writer.WriteFloat(z);
         }
 
+        public bool IsZero() {
+            return x == 0.0f && y == 0.0f && z == 0.0f;
+        }
         public override string ToString()
         {
-            return $"({x}, {y})";
+            return $"({x}, {y}, {z})";
         }
     }
 }

@@ -145,14 +145,13 @@ namespace MiloLib.Assets.Char
                 else
                 {
                     transform.Write(writer);
-                }
-                transform.Write(writer);
-                writer.WriteUInt32((uint)pieces.Count);
-                foreach (Piece piece in pieces)
-                    piece.Write(writer, revision);
+                    writer.WriteUInt32((uint)pieces.Count);
+                    foreach (Piece piece in pieces)
+                        piece.Write(writer, revision);
 
-                if (revision > 0x1A)
-                    writer.WriteBoolean(reskin);
+                    if (revision > 0x1A)
+                        writer.WriteBoolean(reskin);
+                }
             }
         }
         public class MeshAO
@@ -218,6 +217,8 @@ namespace MiloLib.Assets.Char
                 writer.WriteUInt32((uint)seams.Count);
                 foreach (Seam seam in seams)
                     seam.Write(writer);
+                if (revision > 0x18)
+                    Symbol.Write(writer, unkSym);
             }
         }
 

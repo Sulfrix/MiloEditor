@@ -1,5 +1,6 @@
 ﻿using MiloLib.Utils;
 using System.Text;
+using System;
 
 public class Symbol
 {
@@ -26,28 +27,34 @@ public class Symbol
 
     public override string ToString()
     {
-        return chars;
+        if(String.IsNullOrEmpty(chars)) {
+            return "N/A";
+        }
+        else return chars;
     }
+
+    // TODO: move the register provider to a more global place, this is shit
 
     public static Symbol Read(EndianReader reader)
     {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         uint length = reader.ReadUInt32();
 
-        // sanity check on length, if this is something really high we are probably reading garbage
-        // as there are no symbols of this length
         if (length > 512)
         {
             throw new InvalidDataException($"Symbol length is too high: {length}");
         }
 
-        string value = reader.ReadUTF8((int)length);
+        // use Latin1 encoding to support extended characters
+        string value = reader.ReadBytesWithEncoding((int)length, Encoding.Latin1);
         return new Symbol(length, value);
     }
 
     public static void Write(EndianWriter writer, Symbol lengthString)
     {
-        writer.WriteUInt32(lengthString.length);
-
-        writer.WriteBlock(Encoding.UTF8.GetBytes(lengthString.chars));
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        byte[] bytes = Encoding.Latin1.GetBytes(lengthString.chars);
+        writer.WriteUInt32((uint)bytes.Length);
+        writer.WriteBlock(bytes);
     }
 }
