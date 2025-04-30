@@ -204,7 +204,7 @@ public partial class Program
     class AssetTypePrompt : Prompt<string?>
     {
         private int curType = 0;
-        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc"];
+        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget"];
 
         public AssetTypePrompt()
         {
@@ -232,40 +232,42 @@ public partial class Program
     }
     static async void PromptImportAsset(DirectoryMeta dir)
     {
-        var (canceled, paths) = TinyDialogs.OpenFileDialog("Import Asset", "", false);
+        var (canceled, paths) = TinyDialogs.OpenFileDialog("Import Asset", "", true);
         if (!canceled)
         {
-            var path = paths.First();
-            // special handling of certain asset types
-
-            // detect .prefab file
-            if (Path.GetExtension(path) == ".prefab")
+            var assetType = await ShowGenericPrompt(new AssetTypePrompt());
+            //var path = paths.First();
+            foreach (var path in paths)
             {
-                // read file
-                BandCharDesc desc = NautilusInterop.ToBandCharDesc(File.ReadAllText(path));
-                // add the BandCharDesc to the MiloFile
-                currentScene.dirMeta.entries.Add(new DirectoryMeta.Entry("BandCharDesc",
-                    "prefab_" + Path.GetFileNameWithoutExtension(path), desc));
-            }
-            else
-            {
-                var assetType = await ShowGenericPrompt(new AssetTypePrompt());
-
-                if (assetType == null)
+                // detect .prefab file
+                if (Path.GetExtension(path) == ".prefab")
                 {
-                    return;
-                }
-
-                try
-                {
-                    ImportAsset(dir, path, assetType);
-                }
-                catch (Exception e)
-                {
-                    OpenErrorModal(e, "Failed to import asset.");
-                }
                 
+                    // read file
+                    BandCharDesc desc = NautilusInterop.ToBandCharDesc(File.ReadAllText(path));
+                    // add the BandCharDesc to the MiloFile
+                    currentScene.dirMeta.entries.Add(new DirectoryMeta.Entry("BandCharDesc",
+                        "prefab_" + Path.GetFileNameWithoutExtension(path), desc));
+                }
+                else
+                {
+                    if (assetType == null)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        ImportAsset(dir, path, assetType);
+                    }
+                    catch (Exception e)
+                    {
+                        OpenErrorModal(e, "Failed to import asset.");
+                    }
+                
+                }
             }
+            
         }
     }
 
