@@ -57,7 +57,12 @@ convert_metal() {
 
   if [[ -v METAL_EXEC ]]; then
     # Did you know you can just slap a Windows executable in Bash and it automatically executes it through Wine?
-    "$METAL_EXEC" "$input_dir" -o "$output_dir"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      xcrun -sdk macosx metal "$input_dir" -o "$output_dir"
+    else
+      "$METAL_EXEC" "$input_dir" -o "$output_dir"
+    fi
+    
   else
     echo "METAL_EXEC not defined; Metal shaders will not be compiled."
   fi
