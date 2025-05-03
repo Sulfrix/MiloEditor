@@ -681,6 +681,9 @@ public static partial class Program
                 case "TrackWidget":
                     entry.obj = new TrackWidget().Read(reader, false, dir, entry);
                     break;
+                case "Mesh":
+                    entry.obj = new RndMesh().Read(reader, false, dir, entry);
+                    break;
                 default:
                     Debug.WriteLine("Unknown asset type: " + entry.type.value);
                     entry.obj = new Object().Read(reader, false, dir, entry);
