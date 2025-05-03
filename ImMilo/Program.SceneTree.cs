@@ -48,11 +48,11 @@ public partial class Program
         DirNode(dir, ref iterId, id, root);
     }
 
-    static async void MergeDirectory(DirectoryMeta dirEntry, string path)
+    static async void MergeDirectory(DirectoryMeta dirEntry, string path, bool noInteract = false)
     {
         bool? alreadyExistsOverride = null;
         MiloFile externalMiloScene = new MiloFile(path);
-        if (await ShowConfirmPrompt("Would you like to fix parentObj references in this merge? (If unsure, click Yes)"))
+        if (noInteract || await ShowConfirmPrompt("Would you like to fix parentObj references in this merge? (If unsure, click Yes)"))
         {
             var searcher = new SearchWindow("Ref Fixer")
             {
@@ -91,7 +91,7 @@ public partial class Program
                     bool shouldOverwrite = false;
                     if (alreadyExistsOverride == null)
                     {
-                        var promptInput =
+                        var promptInput = noInteract ? "Yes to All" :
                             await ShowChoosePrompt(
                                 $"An entry with the name {currentEntry.name.value} already exists. Do you want to overwrite it?",
                                 "Merge Conflict", "Yes", "No", "Yes to All", "No to All");
@@ -204,7 +204,7 @@ public partial class Program
     class AssetTypePrompt : Prompt<string?>
     {
         private int curType = 0;
-        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget"];
+        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget", "Mesh"];
 
         public AssetTypePrompt()
         {
@@ -501,6 +501,53 @@ public partial class Program
                     if (!canceled)
                     {
                         MergeDirectory(dir, path.First());
+                    }
+                }
+                var objectDirectory = (ObjectDir)dir.directory;
+                if (objectDirectory.inlineProxy)
+                {
+                    if (ImGui.MenuItem(FontAwesome5.Recycle + " Refresh Proxy"))
+                    {
+                        var proxyPath = Path.GetDirectoryName(currentScene.filePath);
+                        var foundFile = false;
+
+                        string? platformIndicator = null;
+                        switch (currentScene.dirMeta.platform)
+                        {
+                            case DirectoryMeta.Platform.Xbox:
+                                platformIndicator = "_xbox";
+                                break;
+                            case DirectoryMeta.Platform.PS3:
+                                platformIndicator = "_ps3";
+                                break;
+                            case DirectoryMeta.Platform.Wii:
+                                platformIndicator = "_wii";
+                                break;
+                            case DirectoryMeta.Platform.PS2:
+                                platformIndicator = "_ps2";
+                                break;
+                        }
+                        
+                        foreach (var file in Directory.GetFiles(proxyPath))
+                        {
+                            var filename = Path.GetFileName(file);
+                            if (filename.StartsWith(objectDirectory.proxyPath) &&
+                                (platformIndicator == null || filename.EndsWith(platformIndicator)))
+                            {
+                                foundFile = true;
+                                proxyPath = file;
+                                break;
+                            }
+                        }
+
+                        if (foundFile)
+                        {
+                            MergeDirectory(dir, proxyPath, true);
+                        }
+                        else
+                        {
+                            ShowNotifyPrompt("Could not find the proxy file: " + objectDirectory.proxyPath, "Error");
+                        }
                     }
                 }
 
