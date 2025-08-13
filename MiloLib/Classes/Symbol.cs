@@ -27,10 +27,7 @@ public class Symbol
 
     public override string ToString()
     {
-        if(String.IsNullOrEmpty(chars)) {
-            return "N/A";
-        }
-        else return chars;
+        return chars;
     }
 
     // TODO: move the register provider to a more global place, this is shit
