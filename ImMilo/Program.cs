@@ -790,11 +790,6 @@ public static partial class Program
                     hasCustomEditor = true;
                 }
 
-                if (viewingObject is RndPropAnim)
-                {
-                    hasCustomEditor = true;
-                }
-
                 if(viewingObject is HamMove || viewingObject is MoveGraph || viewingObject is DancerSequence) { hasCustomEditor = true; }
 
                 if (hasCustomEditor)
@@ -872,15 +867,6 @@ public static partial class Program
                         {
                             EditorPanel.Draw(viewingObject);
                             ImGui.EndTabItem();
-                        }
-
-                        if (viewingObject is RndPropAnim anim)
-                        {
-                            if (ImGui.BeginTabItem(FontAwesome5.Key + "  PropAnim"))
-                            {
-                                PropAnimTimeline.DrawForPropAnim(anim);
-                                ImGui.EndTabItem();
-                            }
                         }
 
                         ImGui.EndTabBar();
