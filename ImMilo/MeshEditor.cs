@@ -225,7 +225,7 @@ public static class MeshEditor
                     var loadResult = BitmapEditor.LoadRndTex(tex);
                     if (loadResult != null)
                     {
-                        (diffuseTextureView, diffuseTexture) = loadResult.Value;
+                        (diffuseTextureView, diffuseTexture, _) = loadResult.Value;
                         textureResourceSet = gd.ResourceFactory.CreateResourceSet(new ResourceSetDescription(textureLayout, diffuseTextureView));
                     }
                     else

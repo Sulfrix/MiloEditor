@@ -1,4 +1,6 @@
 using MiloLib;
+using MiloLib.Assets.Rnd;
+using MiloLib.Classes;
 
 namespace ImMilo;
 
@@ -204,7 +206,7 @@ public partial class Program
     class AssetTypePrompt : Prompt<string?>
     {
         private int curType = 0;
-        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget", "Mesh"];
+        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget", "Mesh", "PropAnim"];
 
         public AssetTypePrompt()
         {
@@ -269,6 +271,75 @@ public partial class Program
             }
             
         }
+    }
+    
+    class NewAssetTypePrompt : Prompt<(string, string)?>
+    {
+        private int curType = 0;
+        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget", "Mesh"];
+        string name = "Unnamed";
+
+        public NewAssetTypePrompt()
+        {
+            Title = "New Asset";
+        }
+
+        public override void Show()
+        {
+            if (BeginModal())
+            {
+                ImGui.InputText("Name", ref name, 64);
+                ImGui.Combo("Asset type", ref curType, assetTypes, assetTypes.Length);
+
+                if (ImGui.Button("OK"))
+                {
+                    Complete((assetTypes[curType], name));
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("Cancel"))
+                {
+                    Complete(null);
+                }
+                ImGui.EndPopup();
+            }
+        }
+    }
+
+    static async void PromptNewAsset(DirectoryMeta dir)
+    {
+        var promptResult = await ShowGenericPrompt(new NewAssetTypePrompt());
+
+        if (promptResult != null)
+        {
+            var (assetType, name) = promptResult.Value;
+            Object newObject = null;
+            List<byte>? backupBytes = null;
+            switch (assetType)
+            {
+                case "Object":
+                    newObject = new Object();
+                    var stream = new MemoryStream();
+                    var writer = new EndianWriter(stream, currentScene.endian);
+                    newObject.objFields.revision = dir.directory.objFields.revision;
+                    newObject.objFields.altRevision = dir.directory.objFields.altRevision;
+                    newObject.Write(writer, true, dir, null);
+                    backupBytes = new List<byte>(stream.GetBuffer());
+                    break;
+                default:
+                    ShowNotifyPrompt("Unimplemented asset type", "Sorry");
+                    return;
+            }
+
+            newObject.objFields.revision = dir.directory.objFields.revision;
+            newObject.objFields.altRevision = dir.directory.objFields.altRevision;
+            var entry = new DirectoryMeta.Entry(assetType, name, newObject);
+            if (backupBytes != null)
+            {
+                entry.objBytes = backupBytes;
+            }
+            dir.entries.Add(entry);
+        }
+        
     }
 
     static async void PromptExportDirectory(DirectoryMeta dir)
@@ -566,7 +637,10 @@ public partial class Program
                     PromptImportAsset(dir);
                 }
 
-                ImGui.MenuItem(FontAwesome5.PlusCircle + "  New Asset", "", false, false);
+                if (ImGui.MenuItem(FontAwesome5.PlusCircle + "  New Asset"))
+                {
+                    PromptNewAsset(dir);
+                }
                 
                 FindReferencesMenu(dir.name);
                 
@@ -598,6 +672,36 @@ public partial class Program
                 if (ImGui.MenuItem(FontAwesome5.Clone + "  Duplicate Asset"))
                 {
                     PromptDuplicateEntry(dir, entry);
+                }
+
+                if (entry.obj is RndMesh mesh)
+                {
+                    if (ImGui.MenuItem(FontAwesome5.HandPointer + "  Shallow Mesh Copy"))
+                    {
+                        var newMesh = new RndMesh();
+                        
+                        newMesh.sphere.x = mesh.sphere.x;
+                        newMesh.sphere.y = mesh.sphere.y;
+                        newMesh.sphere.z = mesh.sphere.z;
+                        newMesh.sphere.radius = mesh.sphere.radius;
+                        
+                        newMesh.draw.sphere.x = mesh.draw.sphere.x;
+                        newMesh.draw.sphere.y = mesh.draw.sphere.y;
+                        newMesh.draw.sphere.z = mesh.draw.sphere.z;
+                        newMesh.draw.sphere.radius = mesh.draw.sphere.radius;
+
+                        //newMesh.geomOwner = entry.name.value;
+                        newMesh.geomOwner = "gem.mesh";
+                        newMesh.mat = entry.name.value;
+                        newMesh.volume = mesh.volume;
+                        newMesh.revision = mesh.revision;
+                        newMesh.altRevision = mesh.altRevision;
+                        newMesh.objFields = mesh.objFields;
+                        newMesh.trans.parentObj = mesh.trans.parentObj.value;
+                        
+                        var newEntry = new DirectoryMeta.Entry("Mesh", entry.name.value, newMesh);
+                        dir.entries.Add(newEntry);
+                    }
                 }
 
                 if (ImGui.MenuItem(FontAwesome5.Edit + "  Rename Asset"))

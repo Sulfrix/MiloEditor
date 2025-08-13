@@ -22,8 +22,9 @@ public static class BitmapEditor
 
     private static bool supportedEncoding = false;
     private static Exception encodingError = null;
+    private static byte[]? cachedData = null;
 
-    public static (TextureView, Texture)? LoadRndTex(RndTex texture)
+    public static (TextureView, Texture, byte[])? LoadRndTex(RndTex texture)
     {
         if (texture.bitmap == null)
         {
@@ -88,13 +89,44 @@ public static class BitmapEditor
                         (uint)image.Width, (uint)image.Height, 1,
                         0, 0);
 
-                    return (Program.gd.ResourceFactory.CreateTextureView(newTex), newTex);
+                    return (Program.gd.ResourceFactory.CreateTextureView(newTex), newTex, image.Data);
                 }
+            }
+
+            if (texture.bitmap.encoding == RndBitmap.TextureEncoding.ARGB)
+            {
+                var imageData = texture.bitmap.textures.First().ToArray();
+                Console.WriteLine("Loading image: " + imageData.Length);
+                for (int i = 0; i < imageData.Length; i += 4)
+                {
+                    // Swizzle swizzle
+                    var a = imageData[i];
+                    var r = imageData[i + 1];
+                    var g = imageData[i + 2];
+                    var b = imageData[i + 3];
+                    imageData[i + 0] = r;
+                    imageData[i + 1] = g;
+                    imageData[i + 2] = b;
+                    imageData[i + 3] = a;
+                }
+                var newTex = Program.gd.ResourceFactory.CreateTexture(TextureDescription.Texture2D(
+                    texture.width, texture.height, 1, 1,
+                    PixelFormat.B8_G8_R8_A8_UNorm,
+                    TextureUsage.Sampled));
+
+                Program.gd.UpdateTexture(
+                    newTex,
+                    imageData,
+                    0, 0, 0,
+                    texture.width, texture.height, 1,
+                    0, 0);
+
+                return (Program.gd.ResourceFactory.CreateTextureView(newTex), newTex, imageData);
             }
         }
         catch (Exception e)
         {
-            
+            Console.Error.WriteLine(e);
             return null;
         }
 
@@ -127,9 +159,10 @@ public static class BitmapEditor
         {
             if (texture.bitmap.encoding == RndBitmap.TextureEncoding.DXT1_BC1 ||
                 texture.bitmap.encoding == RndBitmap.TextureEncoding.DXT5_BC3 ||
-                texture.bitmap.encoding == RndBitmap.TextureEncoding.ATI2_BC5)
+                texture.bitmap.encoding == RndBitmap.TextureEncoding.ATI2_BC5 ||
+                texture.bitmap.encoding == RndBitmap.TextureEncoding.ARGB)
             {
-                (previewTextureView, previewTexture) = LoadRndTex(texture).Value;
+                (previewTextureView, previewTexture, cachedData) = LoadRndTex(texture).Value;
                 texID = Program.controller.GetOrCreateImGuiBinding(Program.gd.ResourceFactory, previewTextureView);
                 supportedEncoding = true;
             }
@@ -217,6 +250,14 @@ public static class BitmapEditor
         ImGui.SameLine();
         if (ImGui.Button("Export"))
             ExportButton();
+        if (curTexture.bitmap.encoding == RndBitmap.TextureEncoding.DXT1_BC1 ||
+            curTexture.bitmap.encoding == RndBitmap.TextureEncoding.DXT5_BC3 ||
+            curTexture.bitmap.encoding == RndBitmap.TextureEncoding.ATI2_BC5)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("Convert to ARGB"))
+                ConvertToARGB();
+        }
         if (!supportedEncoding)
         {
             if (encodingError != null)
@@ -259,6 +300,36 @@ public static class BitmapEditor
         ImGui.EndChild();
         drawList.AddRectFilled(ImGui.GetWindowViewport().Pos, ImGui.GetWindowViewport().Pos + windowSize, 0x000000ff);
         ImGui.PopStyleVar();
+    }
+
+    public static void ConvertToARGB()
+    {
+        if (curTexture.bitmap.encoding == RndBitmap.TextureEncoding.DXT1_BC1 ||
+            curTexture.bitmap.encoding == RndBitmap.TextureEncoding.DXT5_BC3 ||
+            curTexture.bitmap.encoding == RndBitmap.TextureEncoding.ATI2_BC5)
+        {
+            if (cachedData == null)
+            {
+                return;
+            }
+            byte[] swizzled = new byte[cachedData.Length];
+            // Swizzle into ARGB
+            for (int i = 0; i < cachedData.Length; i += 4)
+            {
+                swizzled[i] = cachedData[i + 3];
+                swizzled[i + 1] = cachedData[i + 0];
+                swizzled[i + 2] = cachedData[i + 1];
+                swizzled[i + 3] = cachedData[i + 2];
+            }
+            var bitmap = curTexture.bitmap;
+            curTexture.bpp = 32;
+            bitmap.bpp = 32;
+            bitmap.mipMaps = 0;
+            bitmap.textures.Clear();
+            bitmap.textures.Add(new List<byte>(swizzled));
+            bitmap.encoding = RndBitmap.TextureEncoding.ARGB;
+            UpdateTexture(curTexture);
+        }
     }
 
     private static void ExportButton()

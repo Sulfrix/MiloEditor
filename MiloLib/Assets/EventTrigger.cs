@@ -108,6 +108,11 @@ namespace MiloLib.Assets
                 writer.WriteFloat(delay);
                 writer.WriteInt32(rate);
             }
+
+            public override String ToString()
+            {
+                return "Hide: " + hide + ", delay: " + delay + ", rate: " + rate;
+            }
         }
 
         private ushort altRevision;
