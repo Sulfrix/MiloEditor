@@ -27,11 +27,7 @@ public class Symbol
 
     public override string ToString()
     {
-        if (String.IsNullOrEmpty(chars))
-        {
-            return "N/A";
-        }
-        else return chars;
+        return chars;
     }
 
     public static Symbol Read(EndianReader reader)
@@ -49,6 +45,7 @@ public class Symbol
 
     public static void Write(EndianWriter writer, Symbol lengthString)
     {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         byte[] bytes = Encoding.Latin1.GetBytes(lengthString.chars);
         writer.WriteUInt32((uint)bytes.Length);
         writer.WriteBlock(bytes);
