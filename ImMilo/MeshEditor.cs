@@ -348,9 +348,9 @@ public static class MeshEditor
             UpdateMesh(mesh);
         }
 
-        var offset = new Vector3(0, 0, zoom);
+        var offset = new Vector3(0, zoom, 0);
 
-        projectionMatrix = Matrix4x4.CreateLookAt(offset, Vector3.Zero, Vector3.UnitY);
+        projectionMatrix = Matrix4x4.CreateLookAt(offset, Vector3.Zero, Vector3.UnitZ);
         projectionMatrix *= Matrix4x4.CreatePerspectiveFieldOfView(float.DegreesToRadians(75), viewportSize.X / viewportSize.Y, 0.1f, 10000f);
         modelMatrix = Matrix4x4.CreateTranslation(-centerPos + modelOffset);
         modelMatrix *= modelRotation;
@@ -380,8 +380,8 @@ public static class MeshEditor
         if (ImGui.IsItemHovered() && ImGui.IsMouseDown(ImGuiMouseButton.Left))
         {
             var delta = (ImGui.GetMousePos() - prevMousePos) * 0.02f;
-            modelRotation *= Matrix4x4.CreateRotationX(-delta.Y);
-            modelRotation *= Matrix4x4.CreateRotationY(delta.X);
+            modelRotation *= Matrix4x4.CreateRotationX(delta.Y);
+            modelRotation *= Matrix4x4.CreateRotationZ(delta.X);
         }
         else if (ImGui.IsItemHovered() && ImGui.IsMouseDown(ImGuiMouseButton.Right))
         {
@@ -389,8 +389,8 @@ public static class MeshEditor
 
             Matrix4x4.Invert(modelRotation, out var inverted);
 
-            modelOffset += Vector3.TransformNormal(-Vector3.UnitX * delta.X, inverted);
-            modelOffset += Vector3.TransformNormal(-Vector3.UnitY * delta.Y, inverted);
+            modelOffset += Vector3.TransformNormal(Vector3.UnitX * delta.X, inverted);
+            modelOffset += Vector3.TransformNormal(-Vector3.UnitZ * delta.Y, inverted);
         }
 
         if (ImGui.IsItemHovered())
