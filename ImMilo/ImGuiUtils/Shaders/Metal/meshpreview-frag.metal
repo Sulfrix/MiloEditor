@@ -10,6 +10,17 @@ struct UniformBuffer
     uint hasTexture;
 };
 
+struct spvDescriptorSetBuffer0
+{
+    constant UniformBuffer* m_39 [[id(1)]];
+    sampler TextureSampler [[id(2)]];
+};
+
+struct spvDescriptorSetBuffer1
+{
+    texture2d<float> DiffuseTexture [[id(0)]];
+};
+
 struct FS_out
 {
     float4 outputColor [[color(0)]];
@@ -28,13 +39,13 @@ float map(thread const float& value, thread const float& inMin, thread const flo
     return outMin + (((outMax - outMin) * (value - inMin)) / (inMax - inMin));
 }
 
-fragment FS_out FS(FS_in in [[stage_in]], constant UniformBuffer& _39 [[buffer(1)]], texture2d<float> DiffuseTexture [[texture(0)]], sampler TextureSampler [[sampler(2)]])
+fragment FS_out FS(FS_in in [[stage_in]], constant spvDescriptorSetBuffer0& spvDescriptorSet0 [[buffer(0)]], constant spvDescriptorSetBuffer1& spvDescriptorSet1 [[buffer(1)]])
 {
     FS_out out = {};
     float4 diffuseColor = float4(1.0);
-    if (_39.hasTexture != 0u)
+    if ((*spvDescriptorSet0.m_39).hasTexture != 0u)
     {
-        diffuseColor = DiffuseTexture.sample(TextureSampler, in.texCoord);
+        diffuseColor = spvDescriptorSet1.DiffuseTexture.sample(spvDescriptorSet0.TextureSampler, in.texCoord);
     }
     float param = dot(in.normal, in.updir);
     float param_1 = -1.0;

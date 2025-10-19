@@ -9,6 +9,11 @@ struct ProjectionMatrixBuffer
     float4x4 model_matrix;
 };
 
+struct spvDescriptorSetBuffer0
+{
+    constant ProjectionMatrixBuffer* m_16 [[id(0)]];
+};
+
 struct VS_out
 {
     float3 normal [[user(locn0)]];
@@ -24,10 +29,10 @@ struct VS_in
     float2 in_uv [[attribute(2)]];
 };
 
-vertex VS_out VS(VS_in in [[stage_in]], constant ProjectionMatrixBuffer& _16 [[buffer(1)]])
+vertex VS_out VS(VS_in in [[stage_in]], constant spvDescriptorSetBuffer0& spvDescriptorSet0 [[buffer(0)]])
 {
     VS_out out = {};
-    out.gl_Position = (_16.projection_matrix * _16.model_matrix) * float4(in.in_position, 1.0);
+    out.gl_Position = ((*spvDescriptorSet0.m_16).projection_matrix * (*spvDescriptorSet0.m_16).model_matrix) * float4(in.in_position, 1.0);
     out.normal = in.in_normal;
     out.updir = float3(0.0, 0.0, 1.0);
     out.texCoord = in.in_uv;

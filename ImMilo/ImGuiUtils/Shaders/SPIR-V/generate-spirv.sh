@@ -3,10 +3,10 @@
 # TODO: Make a version of this script for Windows.
 # This script might work under WSL, however.
 
-glslang -V imgui-vertex.glsl -o imgui-vertex.spv -S vert
-glslang -V imgui-frag.glsl -o imgui-frag.spv -S frag
-glslang -V meshpreview-vertex.glsl -o meshpreview-vertex.spv -S vert
-glslang -V meshpreview-frag.glsl -o meshpreview-frag.spv -S frag
+#glslang -V imgui-vertex.glsl -o imgui-vertex.spv -S vert
+#glslang -V imgui-frag.glsl -o imgui-frag.spv -S frag
+#glslang -V meshpreview-vertex.glsl -o meshpreview-vertex.spv -S vert
+#glslang -V meshpreview-frag.glsl -o meshpreview-frag.spv -S frag
 
 convert_glsl() {
   local filename=$(basename $1 .spv)
@@ -36,12 +36,12 @@ convert_metal() {
     stage="vert"
   fi
   echo "Compiling $filename, entry point: $2, stage: $stage"
-  spirv-cross --msl $1 --rename-entry-point "main" $2 $stage --msl-version 302000 --msl-decoration-binding --output "../Metal/$filename.metal"
+  spirv-cross --msl $1 --rename-entry-point "main" $2 $stage --msl-version 302000 --msl-decoration-binding --msl-argument-buffers --output "../Metal/$filename.metal"
   
   # I have to do a manual patch to the metal files, so do it before compilation
-  if [[ -f "../Metal/$filename.metal.patch" ]]; then
-    patch "../Metal/$filename.metal" "../Metal/$filename.metal.patch"
-  fi
+  #if [[ -f "../Metal/$filename.metal.patch" ]]; then
+    #patch "../Metal/$filename.metal" "../Metal/$filename.metal.patch"
+  #fi
   
   # If you have the Metal Developer Tools you can set METAL_TOOLS to the bin/ directory and it will compile the metallibs for you
   if [[ -v METAL_TOOLS ]]; then
@@ -69,15 +69,29 @@ convert_metal() {
 }
 
 convert_all() {
-  convert_glsl $1
+  echo "Converting shaders for $1"
+  #convert_glsl $1
   # DirectX is not supported currently
   #convert_hlsl $1
-  convert_metal $1 $2
+  if [[ $2 == "frag" ]]; then
+    metalentry="FS"
+  fi
+  if [[ $2 == "vert" ]]; then
+    metalentry="VS"
+  fi
+  convert_metal $1 $metalentry
 }
 
-convert_all imgui-frag.spv FS
-convert_all imgui-vertex.spv VS
-convert_all meshpreview-frag.spv FS
-convert_all meshpreview-vertex.spv VS
+compile_and_convert() {
+  local filename=$(basename $1 .glsl)
+  echo "Compiling $1 to $filename.spv"
+  glslang -V $1 -o "$filename.spv" -S $2
+  convert_all "$filename.spv" $2
+}
+
+compile_and_convert imgui-frag.glsl frag
+compile_and_convert imgui-vertex.glsl vert
+compile_and_convert meshpreview-frag.glsl frag
+compile_and_convert meshpreview-vertex.glsl vert
 
 
