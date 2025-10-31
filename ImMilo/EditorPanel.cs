@@ -520,6 +520,23 @@ public class EditorPanel
                         field.SetValue(parent, new List<byte>(File.ReadAllBytes(path.First())));
                     }
                 }
+
+                if (ImGui.CollapsingHeader("Data"))
+                {
+                    ImGui.Indent();
+                    for (int i = 0; i < byteListValue.Count; i++)
+                    {
+                        ImGui.Text($"{i.ToString("X2")}: {byteListValue[i].ToString("X2")}   {byteListValue[i].ToString("B2")}");
+                    }
+                    ImGui.Unindent();
+                }
+                break;
+            
+            case List<ObjectFields.DTBNode> dtbNodes:
+                ImGui.BeginChild("values##" + field.GetHashCode(), new Vector2(0, 125),
+                    ImGuiChildFlags.Borders | ImGuiChildFlags.ResizeY);
+                DTBEditor.EditDTBNodes(dtbNodes);
+                ImGui.EndChild();
                 break;
             case IEnumerable collection:
                 {
@@ -672,6 +689,15 @@ public class EditorPanel
 
                     break;
                 }
+            case ObjectFields.DTBParent { children: null } dtbParent:
+                if (ImGui.Button("Create TypeProps"))
+                {
+                    dtbParent.hasTree = true;
+                    dtbParent.children = [];
+                    field.SetValue(parent, dtbParent);
+                }
+
+                break;
             case object primitiveValue when field.FieldType.IsPrimitive:
                 DrawPrimitiveEdit(parent, primitiveValue, field);
                 ImGui.SameLine();
@@ -708,9 +734,8 @@ public class EditorPanel
                     field.SetValue(parent, new Symbol(0, ""));
                 }
 
-                break;
+                break; 
             case object nestedObject when fieldValue != null:
-
                 if (Settings.Editing.HideNestedHMXObjectFields && !drawLabels && nestedObject.GetType() == typeof(ObjectFields))
                 {
                     ImGui.TextDisabled("(nested fields hidden)");
@@ -720,6 +745,9 @@ public class EditorPanel
                     Draw(nestedObject, id + 1, false, ImGuiTableFlags.NoPadOuterX | ImGuiTableFlags.BordersOuter);
                 }
 
+                break;
+            case null:
+                ImGui.Text("<null value>");
                 break;
             default:
                 ImGui.TextWrapped(field.FieldType.FullName);
