@@ -635,6 +635,10 @@ public class EditorPanel
                     field.SetValue(parent, matrixValue);
                 }
                 break;
+            case SynthSample.SampleData sampleData:
+                SamplePlayer.Draw((SynthSample)parent);
+                Draw(sampleData, id + 1, false, ImGuiTableFlags.NoPadOuterX | ImGuiTableFlags.BordersOuter);
+                break;
             case HmxColor3 colorValue:
                 {
                     var tempVec = new System.Numerics.Vector3(colorValue.r, colorValue.g, colorValue.b);

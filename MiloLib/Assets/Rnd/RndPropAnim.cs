@@ -11,18 +11,25 @@ namespace MiloLib.Assets.Rnd
             public interface IAnimEvent
             {
                 float Pos { get; set; }
+                string ToString();
             }
 
             public struct AnimEventFloat : IAnimEvent
             {
                 public float Value { get; set; }
                 public float Pos { get; set; }
+                public override string ToString() {
+                    return "frame " + Pos + " -> " + Value;
+                }
             }
 
             public struct AnimEventColor : IAnimEvent
             {
                 public HmxColor4 Value { get; set; }
                 public float Pos { get; set; }
+                public override string ToString() {
+                    return "frame " + Pos + " -> " + Value;
+                }
             }
 
             public struct AnimEventObject : IAnimEvent
@@ -30,30 +37,45 @@ namespace MiloLib.Assets.Rnd
                 public Symbol Text1 { get; set; }
                 public Symbol Text2 { get; set; }
                 public float Pos { get; set; }
+                public override string ToString() {
+                    return "frame " + Pos + " -> " + Text1 + ", " + Text2;
+                }
             }
 
             public struct AnimEventBool : IAnimEvent
             {
                 public bool Value { get; set; }
                 public float Pos { get; set; }
+                public override string ToString() {
+                    return "frame " + Pos + " -> " + Value;
+                }
             }
 
             public struct AnimEventQuat : IAnimEvent
             {
                 public MiloLib.Classes.Vector4 Value { get; set; }
                 public float Pos { get; set; }
+                public override string ToString() {
+                    return "frame " + Pos + " -> " + Value;
+                }
             }
 
             public struct AnimEventVector3 : IAnimEvent
             {
                 public MiloLib.Classes.Vector3 Value { get; set; }
                 public float Pos { get; set; }
+                public override string ToString() {
+                    return "frame " + Pos + " -> " + Value;
+                }
             }
 
             public struct AnimEventSymbol : IAnimEvent
             {
                 public Symbol Text { get; set; }
                 public float Pos { get; set; }
+                public override string ToString() {
+                    return "frame " + Pos + " -> " + Text;
+                }
             }
 
             public enum Interpolation : int
@@ -244,10 +266,21 @@ namespace MiloLib.Assets.Rnd
 
             public override string ToString()
             {
-                if (interpHandler.value == "")
-                    return $"target: {target} type: {type1} interp: {interpolation} exceptionType: {exceptionType} numKeys: {keysCount}";
-                else
-                    return $"target: {target} type: {type1} interp: {interpolation} interpHandler: {interpHandler} exceptionType: {exceptionType} numKeys: {keysCount}";
+                string property = "(";
+                for (var i = 0; i < dtb.children.Count; i++)
+                {
+                    var node = dtb.children[i];
+                    property += node.value.ToString();
+                    if (i < dtb.children.Count - 1)
+                    {
+                        property += " ";
+                    }
+                }
+
+                property += ")";
+                string str = $"{interpolation} ({keysCount} keys)\n";
+                str += $"target: {target} {property}\n";
+                return str;
             }
 
 
