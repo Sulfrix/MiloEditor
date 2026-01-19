@@ -270,16 +270,20 @@ namespace MiloLib.Assets.Rnd
 
             public override string ToString()
             {
-                string str = "PropKeys:\n";
-                str += $"target: {target}\n";
-                str += $"property: {dtb}";
-                str += $"interpolation: {interpolation}\n";
-                str += $"interpHandler: {interpHandler}\n";
-                str += $"exceptionType: {exceptionType}\n";
-                str += $"Keys ({keysCount}):\n";
-                for(int i = 0; i < keysCount; i++) {
-                    str += $"\t{keys[i]}\n";
+                string property = "(";
+                for (var i = 0; i < dtb.children.Count; i++)
+                {
+                    var node = dtb.children[i];
+                    property += node.value.ToString();
+                    if (i < dtb.children.Count - 1)
+                    {
+                        property += " ";
+                    }
                 }
+
+                property += ")";
+                string str = $"{interpolation} ({keysCount} keys)\n";
+                str += $"target: {target} {property}\n";
                 return str;
             }
 
@@ -388,13 +392,20 @@ namespace MiloLib.Assets.Rnd
             if (revision > 11)
                 writer.WriteBoolean(mLoop);
 
-            writer.WriteUInt32((uint)flowLabels.Count);
-            foreach(Symbol flowLabel in flowLabels) {
-                Symbol.Write(writer, flowLabel);
+            if (revision > 13)
+            {
+                writer.WriteUInt32((uint)flowLabels.Count);
+                foreach(Symbol flowLabel in flowLabels) {
+                    Symbol.Write(writer, flowLabel);
+                }
             }
 
-            if(revision > 14)
+            if (revision > 14)
+            {
                 writer.WriteFloat(mIntensity);
+                Console.WriteLine("!!!WARNING!!! RB3 SHOULD NOT BE DOING THIS"); 
+            }
+                
 
             if (standalone)
                 writer.WriteBlock(new byte[4] { 0xAD, 0xDE, 0xAD, 0xDE });

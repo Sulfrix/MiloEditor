@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using IconFonts;
 using ImGuiNET;
 using ImMilo.ImGuiUtils;
+using ManagedBass;
 using MiloLib;
 using MiloLib.Assets;
 using MiloLib.Assets.Band;
@@ -175,6 +176,19 @@ public static partial class Program
             }
         };
 
+
+        Bass.Init();
+        // var sample = Bass.CreateSample(256, 440 * 64, 1, 1, BassFlags.Loop | BassFlags.SampleOverrideLongestPlaying);
+        // short[] data = new short[256];
+        // for (int i = 0; i < 256; i++)
+        // {
+        //     data[i] = (short)(32767.0 * MathF.Sin(i * 6.283185f / 64f) * 0.25);
+        // }
+        //
+        // Bass.SampleSetData(sample, data);
+        // var channel = Bass.SampleGetChannel(sample, 0);
+        // Bass.ChannelPlay(channel);
+            
         var stopwatch = Stopwatch.StartNew();
         // Main application loop
         while (_window.Exists)
