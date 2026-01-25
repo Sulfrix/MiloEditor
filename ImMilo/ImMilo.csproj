@@ -70,6 +70,9 @@
         <Content Include="runtimes\linux-arm64\native\libbass.so">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
+        <Content Include="runtimes\win-x64\native\bass.dll">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
 </Project>
