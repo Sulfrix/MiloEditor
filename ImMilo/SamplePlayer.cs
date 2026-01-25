@@ -11,6 +11,7 @@ public class SamplePlayer
     private static Dictionary<SynthSample, SamplePlayer> players = new();
 
     private const int DataPadding = 0;
+    private const int SamplePlayerHeight = 30;
 
     private SynthSample thisSample;
     private short[] sampleData;
@@ -95,6 +96,20 @@ public class SamplePlayer
 
     public void Render()
     {
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
+        if (ImGui.Button(FontAwesome5.EllipsisH, new Vector2(SamplePlayerHeight, SamplePlayerHeight)))
+        {
+            ImGui.OpenPopup("###sampleOption");
+        }
+
+        if (ImGui.BeginPopup("###sampleOptions"))
+        {
+            ImGui.MenuItem("Test");
+            ImGui.EndPopup();
+        }
+
+        ImGui.SameLine();
+        ImGui.PopStyleVar();
         switch (dataState)
         {
             case State.NotLoaded:
@@ -107,13 +122,22 @@ public class SamplePlayer
 
         var channelStatus = Bass.ChannelIsActive(bassChannel);
         var contentSize = ImGui.GetContentRegionAvail();
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
-        ImGui.BeginChild("##sampleData", new Vector2(contentSize.X, 30), ImGuiChildFlags.Borders);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
+        ImGui.BeginChild("##sampleData", new Vector2(contentSize.X, SamplePlayerHeight), ImGuiChildFlags.Borders);
         
-        if (ImGui.Button(channelStatus == PlaybackState.Playing ? FontAwesome5.StepBackward : FontAwesome5.Play, new Vector2(30, 30)))
+        if (ImGui.Button(channelStatus == PlaybackState.Playing ? FontAwesome5.StepBackward : FontAwesome5.Play, new Vector2(SamplePlayerHeight, SamplePlayerHeight)))
         {
-            Bass.ChannelPlay(bassChannel, true);
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+            {
+                Bass.ChannelStop(bassChannel);
+            }
+            else
+            {
+                Bass.ChannelPlay(bassChannel, true);
+            }
+
+            
         }
 
         ImGui.SameLine();
@@ -123,7 +147,7 @@ public class SamplePlayer
         var playheadXPos = (contentSize.X * progress);
         if (channelStatus == PlaybackState.Playing)
         {
-            drawList.AddRectFilled(ImGui.GetCursorScreenPos()+new Vector2(playheadXPos, 0), ImGui.GetCursorScreenPos()+new Vector2(playheadXPos+2, 30), 0xffffffff);
+            drawList.AddRectFilled(ImGui.GetCursorScreenPos()+new Vector2(playheadXPos, 0), ImGui.GetCursorScreenPos()+new Vector2(playheadXPos+2, SamplePlayerHeight), 0xffffffff);
         }
         
         for (int i = 0; i < contentSize.X; i++)
@@ -145,11 +169,11 @@ public class SamplePlayer
             var maxAmpFloat = (float)maxAmp / short.MaxValue;
             if (fracStart < progress)
             {
-                drawList.AddLine(ImGui.GetCursorScreenPos()+new Vector2(xPos, 15-(maxAmpFloat*15)), ImGui.GetCursorScreenPos()+new Vector2(xPos, 15+(maxAmpFloat*15)), 0xff0000ff);
+                drawList.AddLine(ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)-(maxAmpFloat*(SamplePlayerHeight/2))), ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)+(maxAmpFloat*(SamplePlayerHeight/2))), 0xff0000ff);
             }
             else
             {
-                drawList.AddLine(ImGui.GetCursorScreenPos()+new Vector2(xPos, 15-(maxAmpFloat*15)), ImGui.GetCursorScreenPos()+new Vector2(xPos, 15+(maxAmpFloat*15)), 0xffffffff);
+                drawList.AddLine(ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)-(maxAmpFloat*(SamplePlayerHeight/2))), ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)+(maxAmpFloat*(SamplePlayerHeight/2))), 0xffffffff);
             }
             
 

@@ -18,6 +18,7 @@
 
     <ItemGroup>
       <PackageReference Include="BigGustave" Version="1.0.6" />
+      <PackageReference Include="FFMpegCore" Version="5.4.0" />
       <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
       <PackageReference Include="ManagedBass" Version="4.0.2" />
       <PackageReference Include="Pfim" Version="0.11.3" />

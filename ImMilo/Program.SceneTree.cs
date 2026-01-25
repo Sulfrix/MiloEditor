@@ -206,7 +206,7 @@ public partial class Program
     class AssetTypePrompt : Prompt<string?>
     {
         private int curType = 0;
-        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget", "Mesh", "PropAnim"];
+        readonly string[] assetTypes = ["Object", "Tex", "Group", "Trans", "BandSongPref", "Sfx", "BandCharDesc", "TrackWidget", "Mesh", "PropAnim", "SynthSample", "RandomGroupSeq"];
 
         public AssetTypePrompt()
         {

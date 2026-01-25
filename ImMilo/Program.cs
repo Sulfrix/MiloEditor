@@ -9,6 +9,7 @@ using MiloLib;
 using MiloLib.Assets;
 using MiloLib.Assets.Band;
 using MiloLib.Assets.Rnd;
+using MiloLib.Assets.Synth;
 using MiloLib.Utils;
 using TinyDialogsNet;
 using Object = MiloLib.Assets.Object;
@@ -79,6 +80,8 @@ public static partial class Program
 
     private static bool ShowAboutWindow;
     private static nint? MiloTexture;
+    
+    public static UIOverride? uiOverride;
 
     public static bool NoSettingsReload => viewingObject is Settings;
     private static Dictionary<ImGuiMouseCursor, SDL_Cursor> cursorCache = new();
@@ -138,7 +141,7 @@ public static partial class Program
                 "Failed to load custom font.");
         }
 
-        _window.DragDrop += evt => { OpenFile(evt.File); };
+        _window.DragDrop += evt => { OnDragDrop(evt); };
         _window.KeyDown += evt =>
         {
             if ((evt.Modifiers & ModifierKeys.Control) > 0)
@@ -243,6 +246,18 @@ public static partial class Program
         gd.Dispose();
     }
 
+    private static void OnDragDrop(DragDropEvent evt)
+    {
+        if (uiOverride != null)
+        {
+            uiOverride.OnDragDrop(evt);
+        }
+        else
+        {
+            OpenFile(evt.File);
+        }
+    }
+
     static void UpdateTheme()
     {
         currentTheme = Settings.Editing.useTheme;
@@ -286,9 +301,16 @@ public static partial class Program
         ImGui.Begin("ImMilo",
             ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
             ImGuiWindowFlags.NoBringToFrontOnFocus);
-        MenuBar();
         DrawErrorModal();
-        UIContent();
+        if (uiOverride == null)
+        {
+            MenuBar();
+            UIContent();
+        }
+        else
+        {
+            uiOverride.Draw();
+        }
         ProcessPrompts();
 
         ImGui.End();
@@ -534,6 +556,11 @@ public static partial class Program
                 {
                     CharAssetFixer.PromptCharAssetFix();
                 }
+
+                if (ImGui.MenuItem("Kit Wizard"))
+                {
+                    uiOverride = new KitWizard();
+                }
                 ImGui.EndMenu();
             }
 
@@ -700,6 +727,12 @@ public static partial class Program
                     break;
                 case "PropAnim":
                     entry.obj = new RndPropAnim().Read(reader, false, dir, entry);
+                    break;
+                case "SynthSample":
+                    entry.obj = new SynthSample().Read(reader, false, dir, entry);
+                    break;
+                case "RandomGroupSeq":
+                    entry.obj = new RandomGroupSeq().Read(reader, false, dir, entry);
                     break;
                 default:
                     Debug.WriteLine("Unknown asset type: " + entry.type.value);
