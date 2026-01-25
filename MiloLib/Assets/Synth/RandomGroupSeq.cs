@@ -6,8 +6,8 @@ namespace MiloLib.Assets.Synth
     [Name("RandomGroupSeq"), Description("Plays one or more of its child sequences, selected at random.")]
     public class RandomGroupSeq : GroupSeq
     {
-        private ushort altRevision;
-        private ushort revision;
+        public ushort altRevision;
+        public ushort revision;
 
         [Name("Number of Simultaneous Sequences"), Description("Number of children to play simultaneously")]
         public uint numSimultaneous;

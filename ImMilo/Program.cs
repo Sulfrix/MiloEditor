@@ -9,6 +9,7 @@ using MiloLib;
 using MiloLib.Assets;
 using MiloLib.Assets.Band;
 using MiloLib.Assets.Rnd;
+using MiloLib.Assets.Synth;
 using MiloLib.Utils;
 using TinyDialogsNet;
 using Object = MiloLib.Assets.Object;
@@ -49,7 +50,6 @@ public static partial class Program
             {
                 _window.Title = "ImMilo";
             }
-
         }
     }
 
@@ -58,6 +58,7 @@ public static partial class Program
     private static string errorModalMessage = "";
 
     private static object? viewingObject;
+    private static DirectoryMeta.Entry? viewingEntry;
     private static string filter = "";
     private static bool filterActive;
     private static readonly List<object> Breadcrumbs = [];
@@ -76,12 +77,20 @@ public static partial class Program
 
     private static bool ShowAboutWindow;
     private static nint? MiloTexture;
+    
+    public static UIOverride? uiOverride;
 
     public static bool NoSettingsReload => viewingObject is Settings;
     private static Dictionary<ImGuiMouseCursor, SDL_Cursor> cursorCache = new();
 
+    private static SearchWindow geomOwnerFinder = new("Geometry Owner Finder");
+
     static void Main(string[] args)
     {
+        if (args.Length > 0)
+        {
+            OpenFile(args[0]);
+        }
         Settings.Load();
         var graphicsDebug = false;
         var backend = VeldridStartup.GetPlatformDefaultBackend();
@@ -89,7 +98,7 @@ public static partial class Program
         {
             // On my machine, there's a weird bug where running the app with the debugger attached causes
             // CreateWindowAndGraphicsDevice to crash with little to no information.
-            graphicsDebug = !RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
+            //graphicsDebug = !RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
         }
 
 
@@ -129,7 +138,7 @@ public static partial class Program
                 "Failed to load custom font.");
         }
 
-        _window.DragDrop += evt => { OpenFile(evt.File); };
+        _window.DragDrop += evt => { OnDragDrop(evt); };
         _window.KeyDown += evt =>
         {
             if ((evt.Modifiers & ModifierKeys.Control) > 0)
@@ -234,6 +243,18 @@ public static partial class Program
         gd.Dispose();
     }
 
+    private static void OnDragDrop(DragDropEvent evt)
+    {
+        if (uiOverride != null)
+        {
+            uiOverride.OnDragDrop(evt);
+        }
+        else
+        {
+            OpenFile(evt.File);
+        }
+    }
+
     static void UpdateTheme()
     {
         currentTheme = Settings.Editing.useTheme;
@@ -277,9 +298,16 @@ public static partial class Program
         ImGui.Begin("ImMilo",
             ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
             ImGuiWindowFlags.NoBringToFrontOnFocus);
-        MenuBar();
         DrawErrorModal();
-        UIContent();
+        if (uiOverride == null)
+        {
+            MenuBar();
+            UIContent();
+        }
+        else
+        {
+            uiOverride.Draw();
+        }
         ProcessPrompts();
 
         ImGui.End();
@@ -525,6 +553,11 @@ public static partial class Program
                 {
                     CharAssetFixer.PromptCharAssetFix();
                 }
+
+                if (ImGui.MenuItem("Kit Wizard"))
+                {
+                    uiOverride = new KitWizard();
+                }
                 ImGui.EndMenu();
             }
 
@@ -581,6 +614,10 @@ public static partial class Program
         }
         catch (Exception e)
         {
+            if (Debugger.IsAttached)
+            {
+                throw;
+            }
             OpenErrorModal(e, "Error occurred while saving file:");
         }
     }
@@ -612,7 +649,7 @@ public static partial class Program
     /// </summary>
     /// <param name="toView">The object to view.</param>
     /// <param name="breadcrumb">Whether or not to lay "breadcrumbs", which allows for easy navigation to the parent object</param>
-    public static void NavigateObject(object toView, bool breadcrumb = false)
+    public static void NavigateObject(object toView, bool breadcrumb = false, DirectoryMeta.Entry entry = null)
     {
         if (toView == null)
         {
@@ -620,6 +657,7 @@ public static partial class Program
         }
         Console.WriteLine("Navigating to " + toView.GetType().Name);
         viewingObject = toView;
+        viewingEntry = entry;
         if (breadcrumb)
         {
             if (!Breadcrumbs.Contains(toView))
@@ -677,6 +715,21 @@ public static partial class Program
                     break;
                 case "BandCharDesc":
                     entry.obj = new BandCharDesc().Read(reader, false, dir, entry);
+                    break;
+                case "TrackWidget":
+                    entry.obj = new TrackWidget().Read(reader, false, dir, entry);
+                    break;
+                case "Mesh":
+                    entry.obj = new RndMesh().Read(reader, false, dir, entry);
+                    break;
+                case "PropAnim":
+                    entry.obj = new RndPropAnim().Read(reader, false, dir, entry);
+                    break;
+                case "SynthSample":
+                    entry.obj = new SynthSample().Read(reader, false, dir, entry);
+                    break;
+                case "RandomGroupSeq":
+                    entry.obj = new RandomGroupSeq().Read(reader, false, dir, entry);
                     break;
                 default:
                     Debug.WriteLine("Unknown asset type: " + entry.type.value);
@@ -831,7 +884,25 @@ public static partial class Program
                         {
                             if (ImGui.BeginTabItem(FontAwesome5.Cube + "  Mesh"))
                             {
-                                MeshEditor.Draw(mesh);
+                                if (viewingEntry != null && mesh.vertices.vertices.Count == 0 && mesh.geomOwner != viewingEntry.name)
+                                {
+                                    ImGui.Text("This mesh is a reference to another mesh: ");
+                                    if (MeshEditor.curMesh != mesh)
+                                    {
+                                        geomOwnerFinder.Query = mesh.geomOwner.value;
+                                        geomOwnerFinder.EnableDirectories = false;
+                                        geomOwnerFinder.EnableFields = false;
+                                        geomOwnerFinder.Type = SearchWindow.SearchType.Exact;
+                                        geomOwnerFinder.TargetScene = currentScene;
+                                        geomOwnerFinder.UpdateQuery();
+                                    }
+                                    geomOwnerFinder.Draw(true);
+                                    MeshEditor.curMesh = mesh;
+                                }
+                                else
+                                {
+                                    MeshEditor.Draw(mesh);
+                                }
                                 ImGui.EndTabItem();
                             }
                         }
