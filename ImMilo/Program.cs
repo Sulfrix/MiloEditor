@@ -553,11 +553,6 @@ public static partial class Program
                 {
                     CharAssetFixer.PromptCharAssetFix();
                 }
-
-                if (ImGui.MenuItem("Kit Wizard"))
-                {
-                    uiOverride = new KitWizard();
-                }
                 ImGui.EndMenu();
             }
 

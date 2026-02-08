@@ -1,14 +1,113 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
+using FFMpegCore;
+using FFMpegCore.Enums;
+using FFMpegCore.Pipes;
 using IconFonts;
 using ImGuiNET;
 using ManagedBass;
 using MiloLib.Assets;
+using TinyDialogsNet;
 
 namespace ImMilo;
 
 public class SamplePlayer
 {
+    
+    public class CuePlayer
+    {
+        public List<SamplePlayer> players = new();
+        public Dictionary<SamplePlayer, Sfx.SfxMap> playerToMap = new();
+        public Sfx sfx;
+
+        public uint longestSample;
+
+        public CuePlayer(Sfx sfx)
+        {
+            this.sfx = sfx;
+            LoadSamples();
+
+        }
+
+        [DllImport("bass", EntryPoint = "BASS_ChannelStart")]
+        static extern bool BassChannelStart(int handle);
+
+        public void LoadSamples()
+        {
+            players.Clear();
+            playerToMap.Clear();
+            longestSample = 0;
+            var loadTasks = new List<Task>();
+            foreach (var map in sfx.sfxMaps)
+            {
+                var sample = ObjectLocation.FindObject<SynthSample>(map.sampleName, sfx);
+                if (sample != null)
+                {
+                    var player = new SamplePlayer(sample, false);
+                    players.Add(player);
+                    playerToMap[player] = map;
+                    player.LoadData();
+                    if (sample.sampleData.sampleCount > longestSample)
+                    {
+                        longestSample = sample.sampleData.sampleCount;
+                    }
+                }
+            }
+            
+            foreach (var player in players)
+            {
+                if (player.dataState != State.Loaded)
+                {
+                    throw new Exception("Sample is not loaded yet!");
+                }
+                Bass.ChannelSetAttribute(player.bassChannel, ChannelAttribute.Pan, playerToMap[player].pan);
+                if (player != players.First())
+                {
+                    Console.WriteLine($"Linking {players.First().bassChannel} and {player.bassChannel}");
+                    if (!Bass.ChannelSetLink(players.First().bassChannel, player.bassChannel))
+                    {
+                        Console.WriteLine("Channel link failed: " + Bass.LastError);
+                    }
+                }
+            }
+        }
+
+        public void Render()
+        {
+            if (players.Count > 0)
+            {
+                if (ImGui.Button("Play"))
+                {
+                    foreach (var player in players)
+                    {
+                        Bass.ChannelSetPosition(player.bassChannel, 0);
+                    }
+                    BassChannelStart(players.First().bassChannel);
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Reload"))
+                {
+                    LoadSamples();
+                }
+                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
+                ImGui.BeginChild("samples", new Vector2(ImGui.GetContentRegionAvail().X, players.Count * SamplePlayerHeight), ImGuiChildFlags.Borders);
+                foreach (var player in players)
+                {
+                    player.DrawWaveform((float)player.thisSample.sampleData.sampleCount / longestSample);
+                    ImGui.Dummy(new Vector2(20, SamplePlayerHeight));
+                }
+                ImGui.EndChild();
+                ImGui.PopStyleVar();
+                ImGui.PopStyleVar();
+                ImGui.Dummy(ImGui.GetStyle().ItemSpacing/2);
+            }
+        }
+    }
+    
     private static Dictionary<SynthSample, SamplePlayer> players = new();
+    private static Dictionary<Sfx, CuePlayer> cuePlayers = new();
 
     private const int DataPadding = 0;
     private const int SamplePlayerHeight = 30;
@@ -27,23 +126,29 @@ public class SamplePlayer
     private int bassSample;
     private int bassChannel;
 
-    public SamplePlayer(SynthSample sample)
+    public SamplePlayer(SynthSample sample, bool loadData = true)
     {
         thisSample = sample;
-        LoadData();
+        if (loadData)
+        {
+            Task.Run(LoadData);
+        }
     }
 
-    public async void LoadData()
+    public void LoadData()
     {
+        Bass.SampleFree(bassSample);
+        sampleData = [];
         switch (thisSample.sampleData.encoding)
         {
             case SynthSample.SampleData.Encoding.kBigEndPCM:
             case SynthSample.SampleData.Encoding.kPCM:
-                sampleData = new short[(thisSample.sampleData.sampleCount / 2) + DataPadding];
+                sampleData = new short[(thisSample.sampleData.sampleCount) + DataPadding];
                 var rawData = thisSample.sampleData.samples;
-                for (int i = 0; i < thisSample.sampleData.sampleCount/2; i++)
+                for (int i = 0; i < thisSample.sampleData.sampleCount; i++)
                 {
                     var byteIndex = i * 2;
+                    Console.WriteLine(byteIndex);
                     short sample = 0;
                     switch (thisSample.sampleData.encoding)
                     {
@@ -79,8 +184,9 @@ public class SamplePlayer
                 break;
         }
         
-        bassChannel = Bass.SampleGetChannel(bassSample, 0);
+        bassChannel = Bass.SampleGetChannel(bassSample, BassFlags.SampleChannelStream);
         Bass.SampleSetData(bassSample, sampleData);
+        Bass.ChannelSetAttribute(bassChannel, ChannelAttribute.SampleRateConversion, 0);
         dataState = State.Loaded;
     }
     
@@ -94,19 +200,56 @@ public class SamplePlayer
         player.Render();
     }
 
-    public void Render()
+    public static void Draw(Sfx sfx)
     {
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
-        if (ImGui.Button(FontAwesome5.EllipsisH, new Vector2(SamplePlayerHeight, SamplePlayerHeight)))
+        if (!cuePlayers.TryGetValue(sfx, out var player))
         {
-            ImGui.OpenPopup("###sampleOption");
+            cuePlayers[sfx] = new CuePlayer(sfx);
+            player = cuePlayers[sfx];
         }
 
-        if (ImGui.BeginPopup("###sampleOptions"))
+        player.Render();
+    }
+
+    public void Render()
+    {
+        ImGui.Button(FontAwesome5.EllipsisH, new Vector2(SamplePlayerHeight, SamplePlayerHeight));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().FramePadding);
+        if (ImGui.BeginPopupContextItem("SampleActions", ImGuiPopupFlags.MouseButtonLeft))
         {
-            ImGui.MenuItem("Test");
+            if (ImGui.MenuItem(FontAwesome5.FileImport + "  Import Audio File"))
+            {
+                var (cancelled, path) = TinyDialogs.OpenFileDialog("Select an audio file.");
+                if (!cancelled)
+                {
+                    
+                    var probe = FFProbe.Analyse(path.First());
+                    var rate = probe.AudioStreams.First().SampleRateHz;
+                    var memoryStream = new MemoryStream();
+                    FFMpegArguments.FromFileInput(path.First())
+                        .OutputToPipe(new StreamPipeSink(memoryStream), options => options
+                            .WithAudioCodec("pcm_s16be").ForceFormat("s16be").WithAudioSamplingRate(rate).WithCustomArgument("-ac 1")).WithLogLevel(FFMpegLogLevel.Info).ProcessSynchronously();
+                    
+                    Console.WriteLine($"Using sample rate {rate} from file");
+
+                    var data = memoryStream.ToArray();
+                    thisSample.sampleData.samples = [..data];
+                    thisSample.sampleData.sampleRate = (uint)rate;
+                    thisSample.sampleData.sampleCount = (uint)data.Length / 2;
+                    thisSample.sampleData.encoding = SynthSample.SampleData.Encoding.kBigEndPCM;
+                    LoadData();
+                }
+            }
+
+            if (ImGui.MenuItem("\uf01e  Reload"))
+            {
+                LoadData();
+            }
             ImGui.EndPopup();
         }
+        ImGui.PopStyleVar();
+
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
 
         ImGui.SameLine();
         ImGui.PopStyleVar();
@@ -125,7 +268,7 @@ public class SamplePlayer
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
         ImGui.BeginChild("##sampleData", new Vector2(contentSize.X, SamplePlayerHeight), ImGuiChildFlags.Borders);
-        
+
         if (ImGui.Button(channelStatus == PlaybackState.Playing ? FontAwesome5.StepBackward : FontAwesome5.Play, new Vector2(SamplePlayerHeight, SamplePlayerHeight)))
         {
             if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
@@ -136,18 +279,27 @@ public class SamplePlayer
             {
                 Bass.ChannelPlay(bassChannel, true);
             }
-
-            
         }
 
         ImGui.SameLine();
-        contentSize = ImGui.GetContentRegionAvail();
+        DrawWaveform();
+        ImGui.EndChild();
+        ImGui.PopStyleVar();
+        ImGui.PopStyleVar();
+    }
+
+    public void DrawWaveform(float widthMult = 1)
+    {
+        var channelStatus = Bass.ChannelIsActive(bassChannel);
+        var contentSize = ImGui.GetContentRegionAvail();
+        contentSize.X *= widthMult;
+        contentSize.X = MathF.Floor(contentSize.X);
         var drawList = ImGui.GetWindowDrawList();
         var progress = (float)Bass.ChannelGetPosition(bassChannel) / Bass.ChannelGetLength(bassChannel);
         var playheadXPos = (contentSize.X * progress);
         if (channelStatus == PlaybackState.Playing)
         {
-            drawList.AddRectFilled(ImGui.GetCursorScreenPos()+new Vector2(playheadXPos, 0), ImGui.GetCursorScreenPos()+new Vector2(playheadXPos+2, SamplePlayerHeight), 0xffffffff);
+            drawList.AddRectFilled(ImGui.GetCursorScreenPos()+new Vector2(playheadXPos, 0), ImGui.GetCursorScreenPos()+new Vector2(playheadXPos+2, SamplePlayerHeight), ImGui.GetColorU32(ImGuiCol.Text));
         }
         
         for (int i = 0; i < contentSize.X; i++)
@@ -173,13 +325,10 @@ public class SamplePlayer
             }
             else
             {
-                drawList.AddLine(ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)-(maxAmpFloat*(SamplePlayerHeight/2))), ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)+(maxAmpFloat*(SamplePlayerHeight/2))), 0xffffffff);
+                drawList.AddLine(ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)-(maxAmpFloat*(SamplePlayerHeight/2))), ImGui.GetCursorScreenPos()+new Vector2(xPos, (SamplePlayerHeight/2)+(maxAmpFloat*(SamplePlayerHeight/2))), ImGui.GetColorU32(ImGuiCol.Text));
             }
             
 
         }
-        ImGui.EndChild();
-        ImGui.PopStyleVar();
-        ImGui.PopStyleVar();
     }
 }

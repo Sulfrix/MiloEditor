@@ -279,13 +279,13 @@ namespace MiloLib.Assets
             [Name("Sample Name"), Description("Which sample to play")]
             public Symbol sampleName = new(0, "");
             [Name("Volume"), Description("Volume in dB (0 is full volume, -96 is silence)")]
-            public float volume { get; set; }
+            public float volume;
             [Name("Pan"), Description("Surround pan, between -4 and 4")]
-            public float pan { get; set; }
+            public float pan;
             [Name("Transpose"), Description("Transpose in half steps")]
-            public float transpose { get; set; }
+            public float transpose;
             [Name("FX Core"), Description("Which core's digital FX should be used in playing this sample")]
-            public FXCore fxCore { get; set; }
+            public FXCore fxCore;
             [Name("ADSR"), Description("Envelope settings")]
             public ADSR ADSR = new ADSR();
 
@@ -362,21 +362,21 @@ namespace MiloLib.Assets
         private ushort altRevision;
         private ushort revision;
         [Name("Sustain Level"), Description("Level of sustain volume (0-1)")]
-        public float sustainLevel;
+        public float sustainLevel = 0.001f;
         [Name("Release Rate"), Description("Duration of release in seconds")]
         public float releaseRate;
         [Name("Sustain Rate"), Description("Duration of sustain in seconds")]
-        public float sustainRate;
+        public float sustainRate = 0.001f;
         [Name("Decay Rate"), Description("Duration of decay in seconds")]
-        public float decayRate;
+        public float decayRate = 0.005f;
         [Name("Attack Rate"), Description("Duration of attack in seconds")]
-        public float attackRate;
+        public float attackRate = 1;
         [Name("Release Mode"), Description("Release mode")]
-        public uint releaseMode;
+        public uint releaseMode = 1;
         [Name("Sustain Mode"), Description("Sustain mode")]
         public uint sustainMode;
         [Name("Attack Mode"), Description("Attack mode")]
-        public uint attackMode;
+        public uint attackMode = 0;
 
         public void Read(EndianReader reader)
         {

@@ -216,8 +216,12 @@ public class EditorPanel
             ImGui.Text(objNameAttr?.Value ?? $"Type: {objType.Name}");
             ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
             ImGui.TextWrapped(objDescriptionAttr?.Value ?? "No description available.");
-
             ImGui.PopStyleVar();
+            if (obj is Sfx sfx)
+            {
+                SamplePlayer.Draw(sfx);
+            }
+
             ImGui.BeginChild("editor values##" + objType.Name);
         }
 
@@ -229,6 +233,7 @@ public class EditorPanel
         flags ^= toggleFlags;
 
         var subID = 0;
+        
         ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(2, 3));
         if (ImGui.BeginTable("Object fields", 2, flags))
         {

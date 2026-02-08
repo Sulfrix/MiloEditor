@@ -782,7 +782,7 @@ public partial class Program
                 }
             }
 
-            if (ImGui.IsItemActivated() && !ImGui.IsItemToggledOpen())
+            if (ImGui.IsItemDeactivated() && !ImGui.IsItemToggledOpen() && ImGui.IsItemHovered())
                 NavigateObject(dir.directory);
             var nodeId = 200;
             //ImGui.Indent();
@@ -865,7 +865,7 @@ public partial class Program
                     DrawChildLine(false, childLinePos);
                     ItemContextMenu(entry, ref entryIndex);
                     childrenDrawn++;
-                    if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && entry.obj != null)
+                    if (ImGui.IsItemDeactivated() && entry.obj != null && ImGui.IsItemHovered())
                     {
                         NavigateObject(entry.obj, false, entry);
                     }
