@@ -148,7 +148,6 @@ public class SamplePlayer
                 for (int i = 0; i < thisSample.sampleData.sampleCount; i++)
                 {
                     var byteIndex = i * 2;
-                    Console.WriteLine(byteIndex);
                     short sample = 0;
                     switch (thisSample.sampleData.encoding)
                     {
@@ -217,33 +216,52 @@ public class SamplePlayer
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().FramePadding);
         if (ImGui.BeginPopupContextItem("SampleActions", ImGuiPopupFlags.MouseButtonLeft))
         {
-            if (ImGui.MenuItem(FontAwesome5.FileImport + "  Import Audio File"))
-            {
-                var (cancelled, path) = TinyDialogs.OpenFileDialog("Select an audio file.");
-                if (!cancelled)
-                {
-                    
-                    var probe = FFProbe.Analyse(path.First());
-                    var rate = probe.AudioStreams.First().SampleRateHz;
-                    var memoryStream = new MemoryStream();
-                    FFMpegArguments.FromFileInput(path.First())
-                        .OutputToPipe(new StreamPipeSink(memoryStream), options => options
-                            .WithAudioCodec("pcm_s16be").ForceFormat("s16be").WithAudioSamplingRate(rate).WithCustomArgument("-ac 1")).WithLogLevel(FFMpegLogLevel.Info).ProcessSynchronously();
-                    
-                    Console.WriteLine($"Using sample rate {rate} from file");
-
-                    var data = memoryStream.ToArray();
-                    thisSample.sampleData.samples = [..data];
-                    thisSample.sampleData.sampleRate = (uint)rate;
-                    thisSample.sampleData.sampleCount = (uint)data.Length / 2;
-                    thisSample.sampleData.encoding = SynthSample.SampleData.Encoding.kBigEndPCM;
-                    LoadData();
-                }
-            }
-
-            if (ImGui.MenuItem("\uf01e  Reload"))
+            if (ImGui.MenuItem("\uf01e  Reload Sample"))
             {
                 LoadData();
+            }
+            
+            if (Program.FFMpegFound)
+            {
+                if (ImGui.MenuItem(FontAwesome5.FileImport + "  Import Audio File"))
+                {
+                    var (cancelled, path) = TinyDialogs.OpenFileDialog("Select an audio file.");
+                    if (!cancelled)
+                    {
+                        
+                        var probe = FFProbe.Analyse(path.First());
+                        var rate = probe.AudioStreams.First().SampleRateHz;
+                        var memoryStream = new MemoryStream();
+                        FFMpegArguments.FromFileInput(path.First())
+                            .OutputToPipe(new StreamPipeSink(memoryStream), options => options
+                                .WithAudioCodec("pcm_s16be").ForceFormat("s16be").WithAudioSamplingRate(rate).WithCustomArgument("-ac 1")).WithLogLevel(FFMpegLogLevel.Info).ProcessSynchronously();
+                        
+                        Console.WriteLine($"Using sample rate {rate} from file");
+
+                        var data = memoryStream.ToArray();
+                        thisSample.sampleData.samples = [..data];
+                        thisSample.sampleData.sampleRate = (uint)rate;
+                        thisSample.sampleData.sampleCount = (uint)data.Length / 2;
+                        thisSample.sampleData.encoding = SynthSample.SampleData.Encoding.kBigEndPCM;
+                        LoadData();
+                    }
+                }
+
+                if (ImGui.MenuItem(FontAwesome5.FileExport + "  Export Audio File"))
+                {
+                    var (cancelled, path) =
+                        TinyDialogs.SaveFileDialog("Select file to save", "", new FileFilter("WAV file", ["*.wav"]));
+                    if (!cancelled)
+                    {
+                        var memoryStream = new MemoryStream(thisSample.sampleData.samples.ToArray());
+                        FFMpegArguments.FromPipeInput(new StreamPipeSource(memoryStream), options => options
+                            .WithAudioCodec("pcm_s16be").ForceFormat("s16be").WithAudioSamplingRate((int)thisSample.sampleData.sampleRate)).OutputToFile(path).ProcessSynchronously();
+                    }
+                }
+            }
+            else
+            {
+                ImGui.Text("Cannot import/export: FFMpeg not found in path");
             }
             ImGui.EndPopup();
         }

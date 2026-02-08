@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using FFMpegCore;
 using IconFonts;
 using ImGuiNET;
 using ImMilo.ImGuiUtils;
@@ -85,6 +86,8 @@ public static partial class Program
 
     private static SearchWindow geomOwnerFinder = new("Geometry Owner Finder");
 
+    public static bool FFMpegFound = true;
+    
     static void Main(string[] args)
     {
         if (args.Length > 0)
