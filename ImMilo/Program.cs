@@ -86,6 +86,9 @@ public static partial class Program
 
     private static SearchWindow geomOwnerFinder = new("Geometry Owner Finder");
 
+    /// <summary>
+    /// Doesn't actually detect FFMPEG yet, temporarily set to true.
+    /// </summary>
     public static bool FFMpegFound = true;
     
     static void Main(string[] args)

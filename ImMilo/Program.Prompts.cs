@@ -330,6 +330,41 @@ public partial class Program
             }
         }
     }
+    
+    private class IntPrompt : Prompt<int?>
+    {
+        private int value;
+        
+        public IntPrompt(string message, string title, int defaultValue = 0)
+        {
+            Message = message;
+            Title = title;
+            value = defaultValue;
+        }
+
+        public override void Show()
+        {
+            if (BeginModal())
+            {
+                if (ImGui.IsWindowAppearing())
+                {
+                    ImGui.SetKeyboardFocusHere();
+                }
+                ImGui.InputInt(Message, ref value);
+
+                if (ImGui.Button("Ok"))
+                {
+                    Complete(value);
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("Cancel"))
+                {
+                    Complete(null);
+                }
+                ImGui.EndPopup();
+            }
+        }
+    }
 
     /// <summary>
     /// Shows a <see cref="Prompt{T}"/>, and waits for it to be completed by the user.
@@ -395,6 +430,18 @@ public partial class Program
     public static async Task<string?> ShowTextPrompt(string inputLabel, string title, string defaultValue = "")
     {
         return await ShowGenericPrompt(new TextPrompt(inputLabel, title, defaultValue));
+    }
+    
+    /// <summary>
+    /// Shows a number prompt, asking the user for a integer.
+    /// </summary>
+    /// <param name="inputLabel">Label shown next to the text box.</param>
+    /// <param name="title">Window title.</param>
+    /// <param name="defaultValue">Value first entered in the text box.</param>
+    /// <returns></returns>
+    public static async Task<int?> ShowIntPrompt(string inputLabel, string title, int defaultValue = 0)
+    {
+        return await ShowGenericPrompt(new IntPrompt(inputLabel, title, defaultValue));
     }
 
     /// <summary>

@@ -210,6 +210,38 @@ public class SamplePlayer
         player.Render();
     }
 
+    public async void PromptResample()
+    {
+        var rate = await Program.ShowIntPrompt("New sample rate", "Resample Audio", (int)thisSample.sampleData.sampleRate);
+        if (rate != null)
+        {
+            var inData = new List<byte>();
+            for (int i = 0; i < sampleData.Length; i++)
+            {
+                var bytes = BitConverter.GetBytes(sampleData[i]);
+                if (BitConverter.IsLittleEndian)
+                {
+                    bytes = bytes.Reverse().ToArray();
+                }
+                inData.AddRange(bytes);
+            }
+            var inStream = new MemoryStream(inData.ToArray());
+            var outStream = new MemoryStream();
+            FFMpegArguments.FromPipeInput(new StreamPipeSource(inStream), options => options
+                    .WithAudioCodec("pcm_s16be").ForceFormat("s16be").WithAudioSamplingRate((int)thisSample.sampleData.sampleRate))
+                .OutputToPipe(new StreamPipeSink(outStream), options => options
+                    .WithAudioCodec("pcm_s16be").ForceFormat("s16be").WithAudioSamplingRate(rate.Value).WithCustomArgument("-ac 1")).WithLogLevel(FFMpegLogLevel.Info).ProcessSynchronously();
+            
+
+            var data = outStream.ToArray();
+            thisSample.sampleData.samples = [..data];
+            thisSample.sampleData.sampleRate = (uint)rate;
+            thisSample.sampleData.sampleCount = (uint)data.Length / 2;
+            thisSample.sampleData.encoding = SynthSample.SampleData.Encoding.kBigEndPCM;
+            LoadData();
+        }
+    }
+
     public void Render()
     {
         ImGui.Button(FontAwesome5.EllipsisH, new Vector2(SamplePlayerHeight, SamplePlayerHeight));
@@ -247,16 +279,32 @@ public class SamplePlayer
                     }
                 }
 
-                if (ImGui.MenuItem(FontAwesome5.FileExport + "  Export Audio File"))
+                if (dataState == State.Loaded && ImGui.MenuItem(FontAwesome5.FileExport + "  Export Audio File"))
                 {
                     var (cancelled, path) =
                         TinyDialogs.SaveFileDialog("Select file to save", "", new FileFilter("WAV file", ["*.wav"]));
                     if (!cancelled)
                     {
-                        var memoryStream = new MemoryStream(thisSample.sampleData.samples.ToArray());
+                        var data = new List<byte>();
+                        for (int i = 0; i < sampleData.Length; i++)
+                        {
+                            var bytes = BitConverter.GetBytes(sampleData[i]);
+                            if (BitConverter.IsLittleEndian)
+                            {
+                                bytes = bytes.Reverse().ToArray();
+                            }
+                            data.AddRange(bytes);
+                        }
+                        var memoryStream = new MemoryStream(data.ToArray());
+                        
                         FFMpegArguments.FromPipeInput(new StreamPipeSource(memoryStream), options => options
                             .WithAudioCodec("pcm_s16be").ForceFormat("s16be").WithAudioSamplingRate((int)thisSample.sampleData.sampleRate)).OutputToFile(path).ProcessSynchronously();
                     }
+                }
+
+                if (dataState == State.Loaded && ImGui.MenuItem(FontAwesome5.FileAudio + "  Resample Audio"))
+                {
+                    PromptResample();
                 }
             }
             else
