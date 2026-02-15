@@ -81,6 +81,8 @@ public static partial class Program
     
     public static UIOverride? uiOverride;
 
+    private static bool isOpeningFile;
+
     public static bool NoSettingsReload => viewingObject is Settings;
     private static Dictionary<ImGuiMouseCursor, SDL_Cursor> cursorCache = new();
 
@@ -257,7 +259,7 @@ public static partial class Program
         }
         else
         {
-            OpenFile(evt.File);
+            Task.Run(() => { OpenFile(evt.File); });
         }
     }
 
@@ -308,7 +310,17 @@ public static partial class Program
         if (uiOverride == null)
         {
             MenuBar();
-            UIContent();
+            if (isOpeningFile)
+            {
+                ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), 0, new Vector2(0.5f, 0.5f));
+                ImGui.Begin("Loading", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDecoration);
+                ImGui.ProgressBar(-0.5f * (float)ImGui.GetTime(), new Vector2(200, 20), "Opening file...");
+                ImGui.End();
+            }
+            else
+            {
+                UIContent();
+            }
         }
         else
         {
@@ -453,10 +465,16 @@ public static partial class Program
 
     static void OpenFile(string path)
     {
+        if (isOpeningFile)
+        {
+            return;
+        }
+        isOpeningFile = true;
         if (Debugger.IsAttached)
         {
             currentScene = new MiloFile(path);
             viewingObject = null;
+            isOpeningFile = false;
         }
         else
         {
@@ -464,11 +482,13 @@ public static partial class Program
             {
                 currentScene = new MiloFile(path);
                 viewingObject = null;
+                isOpeningFile = false;
             }
             catch (Exception e)
             {
                 OpenErrorModal(e, "Error occurred while loading file:");
                 currentScene = null;
+                isOpeningFile = false;
                 Console.WriteLine(e.Message);
             }
         }
@@ -641,7 +661,7 @@ public static partial class Program
         var (canceled, paths) = TinyDialogs.OpenFileDialog("Open Milo Scene", "", false, fileFilter);
         if (!canceled)
         {
-            OpenFile(paths.First());
+            Task.Run(() => { OpenFile(paths.First()); });
         }
     }
 

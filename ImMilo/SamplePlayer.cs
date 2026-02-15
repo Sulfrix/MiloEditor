@@ -103,6 +103,13 @@ public class SamplePlayer
                 ImGui.PopStyleVar();
                 ImGui.Dummy(ImGui.GetStyle().ItemSpacing/2);
             }
+            else
+            {
+                if (ImGui.Button("Reload"))
+                {
+                    LoadSamples();
+                }
+            }
         }
     }
     
@@ -396,5 +403,15 @@ public class SamplePlayer
             
 
         }
+    }
+
+    ~SamplePlayer()
+    {
+        if (bassSample != 0)
+        {
+            Bass.SampleFree(bassSample);
+            Bass.StreamFree(bassChannel);
+        }
+        
     }
 }

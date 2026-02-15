@@ -576,7 +576,7 @@ public partial class Program
                 var objectDirectory = (ObjectDir)dir.directory;
                 if (objectDirectory.inlineProxy)
                 {
-                    if (ImGui.MenuItem(FontAwesome5.Recycle + " Refresh Proxy"))
+                    if (ImGui.MenuItem(FontAwesome5.Recycle + "  Refresh Proxy"))
                     {
                         var proxyPath = Path.GetDirectoryName(currentScene.filePath);
                         var foundFile = false;
